@@ -53,11 +53,12 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
   const allReleases = [];
   const cutoff = cutoffDate(daysWindow);
   const maxRetries = 3;
-  const delayMs = 10000; // 10 second delay between retries
+  const baseDelay = 5000; // 5 seconds, grows exponentially
 
   for (let page = 1; ; page++) {
     let lastError;
     let releases;
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const res = await fetch(
@@ -85,33 +86,46 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
         }
 
         if (res.status === 404) {
-          throw new Error(`Repository "${repo}" does not exist or is private.`);
+          const err = new Error(`Repository not found or private`);
+          err.code = 404;
+          throw err;
+        }
+
+        if ([502, 503, 504].includes(res.status)) {
+          const err = new Error(`Temporary upstream error ${res.status}`);
+          err.code = res.status;
+          throw err;
         }
 
         if (!res.ok) {
-          throw new Error(`GitHub API error (${repo}): ${res.status}`);
+          const err = new Error(`GitHub API error (${repo}): ${res.status}`);
+          err.code = res.status;
+          throw err;
         }
 
         releases = await res.json();
-        // If we get here, the request was successful
         lastError = null;
-        break; // Exit retry loop on success
+        break;
       } catch (err) {
+        if (err.code === 404) {
+          lastError = err;
+          break;
+        }
+
         lastError = err;
+
+        // Exponential backoff for retryable errors
         if (attempt < maxRetries) {
+          const delay = baseDelay * Math.pow(2, attempt - 1);
           console.log(
-            `Attempt ${attempt} failed for ${repo}, retrying in ${delayMs / 1000} seconds...`
+            `Attempt ${attempt} failed for ${repo} (${err.code || err.message}), retrying in ${delay / 1000}s...`
           );
-          await sleep(delayMs);
+          await sleep(delay);
         }
       }
     }
 
-    // If we've exhausted all retries and still have an error, throw it
-    if (lastError) {
-      throw lastError;
-    }
-
+    if (lastError) throw lastError;
     if (!releases.length) break;
 
     for (const r of releases) {
@@ -120,7 +134,6 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
 
       const body = (r.body_html || "").toLowerCase();
       r.flagged = keywords.some((kw) => body.includes(kw));
-
       allReleases.push(r);
     }
   }
