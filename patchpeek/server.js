@@ -25,12 +25,20 @@ const keywords = [
   "important",
 ];
 
+const cutoffDate = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d;
+};
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function loadConfig() {
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
   try {
-    await fs.mkdir(path.dirname(configPath), { recursive: true });
     config = JSON.parse(await fs.readFile(configPath, "utf-8"));
   } catch {
-    await saveConfig();
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
   }
 }
 
@@ -38,100 +46,68 @@ async function saveConfig() {
   await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 }
 
-function cutoffDate(days) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  return cutoff;
-}
-
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function fetchReleases(repo, daysWindow = config.daysWindow) {
-  rateLimited = false;
   const allReleases = [];
   const cutoff = cutoffDate(daysWindow);
-  const maxRetries = 3;
-  const baseDelay = 5000; // 5 seconds, grows exponentially
+  const baseDelay = 5000;
 
   for (let page = 1; ; page++) {
-    let lastError;
     let releases;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const res = await fetch(
           `https://api.github.com/repos/${repo}/releases?per_page=30&page=${page}`,
           {
             headers: {
               Accept: "application/vnd.github.html+json",
-              Authorization: config.githubToken
-                ? `token ${config.githubToken}`
-                : undefined,
+              ...(config.githubToken && {
+                Authorization: `token ${config.githubToken}`,
+              }),
             },
           }
         );
 
+        const tokenRemaining = res.headers.get("x-ratelimit-remaining");
+        const tokenLimit = res.headers.get("x-ratelimit-limit");
+
         console.log(
-          `${repo}: ${res.status} | Remaining tokens: ${res.headers.get("x-ratelimit-remaining")}/${res.headers.get("x-ratelimit-limit")}`
+          `${repo}: ${res.status} | Remaining tokens: ${tokenRemaining}/${tokenLimit}`
         );
 
-        if (
-          res.status === 403 &&
-          res.headers.get("x-ratelimit-remaining") === "0"
-        ) {
+        if (res.status === 403 && tokenRemaining === "0") {
           rateLimited = true;
           return allReleases;
         }
 
         if (res.status === 404) {
-          const err = new Error(`Repository not found or private`);
-          err.code = 404;
+          const err = new Error("Repository not found or private");
+          err.nonRetryable = true;
           throw err;
         }
 
-        if ([502, 503, 504].includes(res.status)) {
-          const err = new Error(`Temporary upstream error ${res.status}`);
-          err.code = res.status;
-          throw err;
-        }
-
-        if (!res.ok) {
-          const err = new Error(`GitHub API error (${repo}): ${res.status}`);
-          err.code = res.status;
-          throw err;
-        }
+        if ([502, 503, 504].includes(res.status))
+          throw new Error(`Temporary upstream error ${res.status}`);
+        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
 
         releases = await res.json();
-        lastError = null;
         break;
       } catch (err) {
-        if (err.code === 404) {
-          lastError = err;
-          break;
-        }
+        if (err.nonRetryable) throw err; // skip retries on non-existent repos
 
-        lastError = err;
-
-        // Exponential backoff for retryable errors
-        if (attempt < maxRetries) {
-          const delay = baseDelay * Math.pow(2, attempt - 1);
-          console.log(
-            `Attempt ${attempt} failed for ${repo} (${err.code || err.message}), retrying in ${delay / 1000}s...`
-          );
-          await sleep(delay);
-        }
+        if (attempt === 3) throw err;
+        const delay = baseDelay * 2 ** (attempt - 1);
+        console.log(
+          `Attempt ${attempt} failed for ${repo}: ${err.message}, retrying in ${delay / 1000}s...`
+        );
+        await sleep(delay);
       }
     }
 
-    if (lastError) throw lastError;
-    if (!releases.length) break;
+    if (!releases?.length) break;
 
     for (const r of releases) {
       if (r.draft || r.prerelease) continue;
       if (new Date(r.published_at) < cutoff) return allReleases;
-
       const body = (r.body_html || "").toLowerCase();
       r.flagged = keywords.some((kw) => body.includes(kw));
       allReleases.push(r);
@@ -141,36 +117,31 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
   return allReleases;
 }
 
-async function refreshReleases(reposToRefresh = config.repos) {
-  console.log(`Refreshing ${reposToRefresh.length} repositories`);
+async function refreshReleases(repos = config.repos) {
+  console.log(`Refreshing ${repos.length} repositories`);
+  rateLimited = false;
   const cutoff = cutoffDate(config.daysWindow);
   const errors = [];
+  const data = new Map(cachedData.map((d) => [d.repo, d]));
 
   await Promise.all(
-    reposToRefresh.map((repo) =>
+    repos.map((repo) =>
       limit(async () => {
         try {
           const releases = (await fetchReleases(repo)).filter(
             (r) => new Date(r.published_at) >= cutoff
           );
-
           releases.sort((a, b) => {
             if (a.flagged && !b.flagged) return -1;
             if (!a.flagged && b.flagged) return 1;
             return new Date(b.published_at) - new Date(a.published_at);
           });
-
-          const entry = {
+          data.set(repo, {
             repo,
             releases,
             releaseCount: releases.length,
             hasFlagged: releases.some((r) => r.flagged),
-          };
-
-          cachedData = [
-            ...cachedData.filter((f) => f.repo !== repo),
-            ...(entry.releaseCount > 0 ? [entry] : []),
-          ];
+          });
         } catch (err) {
           console.error(`Failed to refresh ${repo}: ${err.message}`);
           errors.push(`Failed to refresh ${repo}: ${err.message}`);
@@ -179,17 +150,18 @@ async function refreshReleases(reposToRefresh = config.repos) {
     )
   );
 
+  cachedData = [...data.values()].filter((d) => d.releaseCount > 0);
   cachedData.sort((a, b) => b.releaseCount - a.releaseCount);
   refreshReleases.lastErrors = errors;
   lastUpdateTime = new Date().toLocaleString();
   console.log(" ");
 }
 
-function renderIndex(res, { errorMessage } = {}) {
+function renderIndex(res, errorMessage) {
   res.render("index", {
     allReleases: cachedData,
     daysWindow: config.daysWindow,
-    repoList: [...config.repos].sort((a, b) => a.localeCompare(b)),
+    repoList: config.repos.sort((a, b) => a.localeCompare(b)),
     errorMessage: errorMessage || refreshReleases.lastErrors || null,
     rateLimited,
     lastUpdateTime,
@@ -197,33 +169,32 @@ function renderIndex(res, { errorMessage } = {}) {
 }
 
 function normalizeRepoSlug(input) {
-  const trimmed = input.trim();
-  const match = trimmed.match(
-    /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/]+)(?:\/.*)?$/
-  );
-  return match ? `${match[1]}/${match[2]}` : trimmed;
+  const match = input
+    .trim()
+    .match(
+      /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/]+)(?:\/.*)?$/
+    );
+  return match ? `${match[1]}/${match[2]}` : input.trim();
 }
 
 app.get("/", async (req, res) => {
-  if (cachedData.length === 0) await refreshReleases();
+  if (!cachedData.length) await refreshReleases();
   renderIndex(res);
 });
 
 app.get("/debug", (req, res) => res.json(cachedData));
 
 app.post("/add-repo", async (req, res) => {
-  const repoInput = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
-
-  if (config.repos.includes(repoInput))
-    return renderIndex(res, { errorMessage: ["Repository already added"] });
-
+  const repo = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
+  if (config.repos.includes(repo))
+    return renderIndex(res, ["Repository already added"]);
   try {
-    await refreshReleases([repoInput]);
-    config.repos.push(repoInput);
+    await refreshReleases([repo]);
+    config.repos.push(repo);
     await saveConfig();
     res.redirect("/");
   } catch (err) {
-    renderIndex(res, { errorMessage: [`Failed to fetch: ${err.message}`] });
+    renderIndex(res, [`Failed to fetch: ${err.message}`]);
   }
 });
 
@@ -231,18 +202,16 @@ app.post("/remove-repo", async (req, res) => {
   const repo = req.body.repoSlug.trim();
   config.repos = config.repos.filter((r) => r !== repo);
   cachedData = cachedData.filter((r) => r.repo !== repo);
-  if (refreshReleases.lastErrors?.length) {
-    refreshReleases.lastErrors = refreshReleases.lastErrors.filter(
-      (err) => !err.includes(repo)
-    );
-  }
+  refreshReleases.lastErrors = (refreshReleases.lastErrors || []).filter(
+    (e) => !e.includes(repo)
+  );
   await saveConfig();
   res.redirect("/");
 });
 
 app.post("/update-days", async (req, res) => {
   const days = parseInt(req.body.daysWindow, 10);
-  if (!isNaN(days) && days > 0) {
+  if (days > 0) {
     config.daysWindow = days;
     await saveConfig();
     await refreshReleases();
@@ -252,13 +221,10 @@ app.post("/update-days", async (req, res) => {
 
 app.post("/update-token", async (req, res) => {
   const token = req.body.githubToken?.trim();
-  if (token && !/^github_pat_|^ghp_/.test(token)) {
-    return renderIndex(res, {
-      errorMessage: [
-        "Invalid GitHub token format. It should start with 'github_pat_' or 'ghp_'.",
-      ],
-    });
-  }
+  if (token && !/^github_pat_|^ghp_/.test(token))
+    return renderIndex(res, [
+      "Invalid GitHub token format. It should start with 'github_pat_' or 'ghp_'",
+    ]);
   config.githubToken = token;
   await saveConfig();
   res.redirect("/");
@@ -267,8 +233,6 @@ app.post("/update-token", async (req, res) => {
 (async () => {
   await loadConfig();
   await refreshReleases();
-  setInterval(refreshReleases, 60 * 60 * 1000); // 1 hour
-  app.listen(port, () =>
-    console.log(`Server running at http://0.0.0.0:${port}\n`)
-  );
+  setInterval(refreshReleases, 60 * 60 * 1000);
+  app.listen(port, () => console.log(`Server running on :${port}\n`));
 })();
