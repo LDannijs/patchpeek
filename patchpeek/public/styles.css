@@ -151,13 +151,13 @@ body {
   background: #232323;
 }
 
-.settings:hover {
-  background: #303030;
-}
-
 .settingsSummary {
   padding: 8px 15px;
   border: 1px solid #707070;
+}
+
+.settingsSummary:hover {
+  background: #3a3a3a;
 }
 
 .settingsTitle {

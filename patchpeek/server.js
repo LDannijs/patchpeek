@@ -44,42 +44,74 @@ function cutoffDate(days) {
   return cutoff;
 }
 
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function fetchReleases(repo, daysWindow = config.daysWindow) {
+  rateLimited = false;
   const allReleases = [];
   const cutoff = cutoffDate(daysWindow);
+  const maxRetries = 3;
+  const delayMs = 10000; // 10 second delay between retries
 
   for (let page = 1; ; page++) {
-    const res = await fetch(
-      `https://api.github.com/repos/${repo}/releases?per_page=30&page=${page}`,
-      {
-        headers: {
-          Accept: "application/vnd.github.html+json",
-          Authorization: config.githubToken
-            ? `token ${config.githubToken}`
-            : undefined,
-        },
+    let lastError;
+    let releases;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(
+          `https://api.github.com/repos/${repo}/releases?per_page=30&page=${page}`,
+          {
+            headers: {
+              Accept: "application/vnd.github.html+json",
+              Authorization: config.githubToken
+                ? `token ${config.githubToken}`
+                : undefined,
+            },
+          }
+        );
+
+        console.log(
+          `${repo}: ${res.status} | Remaining tokens: ${res.headers.get("x-ratelimit-remaining")}/${res.headers.get("x-ratelimit-limit")}`
+        );
+
+        if (
+          res.status === 403 &&
+          res.headers.get("x-ratelimit-remaining") === "0"
+        ) {
+          rateLimited = true;
+          return allReleases;
+        }
+
+        if (res.status === 404) {
+          throw new Error(`Repository "${repo}" does not exist or is private.`);
+        }
+
+        if (!res.ok) {
+          throw new Error(`GitHub API error (${repo}): ${res.status}`);
+        }
+
+        releases = await res.json();
+        // If we get here, the request was successful
+        lastError = null;
+        break; // Exit retry loop on success
+      } catch (err) {
+        lastError = err;
+        if (attempt < maxRetries) {
+          console.log(
+            `Attempt ${attempt} failed for ${repo}, retrying in ${delayMs / 1000} seconds...`
+          );
+          await sleep(delayMs);
+        }
       }
-    );
-
-    console.log(
-      `${repo}: ${res.status} | Remaining tokens: ${res.headers.get("x-ratelimit-remaining")}/${res.headers.get("x-ratelimit-limit")}`
-    );
-
-    if (
-      res.status === 403 &&
-      res.headers.get("x-ratelimit-remaining") === "0"
-    ) {
-      rateLimited = true;
-      return allReleases;
     }
 
-    if (res.status === 404) {
-      throw new Error(`Repository "${repo}" does not exist or is private.`);
+    // If we've exhausted all retries and still have an error, throw it
+    if (lastError) {
+      throw lastError;
     }
 
-    if (!res.ok) throw new Error(`GitHub API error (${repo}): ${res.status}`);
-
-    const releases = await res.json();
     if (!releases.length) break;
 
     for (const r of releases) {
