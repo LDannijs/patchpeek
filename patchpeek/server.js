@@ -67,14 +67,14 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
           }
         );
 
-        const tokenRemaining = res.headers.get("x-ratelimit-remaining");
-        const tokenLimit = res.headers.get("x-ratelimit-limit");
+        const rateRemaining = res.headers.get("x-ratelimit-remaining");
+        const rateLimit = res.headers.get("x-ratelimit-limit");
 
         console.log(
-          `${repo}: ${res.status} | Remaining tokens: ${tokenRemaining}/${tokenLimit}`
+          `${repo}: ${res.status} | Remaining tokens: ${rateRemaining}/${rateLimit}`
         );
 
-        if (res.status === 403 && tokenRemaining === "0") {
+        if (res.status === 403 && rateRemaining === "0") {
           rateLimited = true;
           return allReleases;
         }
@@ -117,12 +117,13 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
   return allReleases;
 }
 
+let cachedDataMap = new Map();
+
 async function refreshReleases(repos = config.repos) {
   console.log(`Refreshing ${repos.length} repositories`);
   rateLimited = false;
   const cutoff = cutoffDate(config.daysWindow);
   const errors = [];
-  const data = new Map(cachedData.map((d) => [d.repo, d]));
 
   await Promise.all(
     repos.map((repo) =>
@@ -131,17 +132,23 @@ async function refreshReleases(repos = config.repos) {
           const releases = (await fetchReleases(repo)).filter(
             (r) => new Date(r.published_at) >= cutoff
           );
+
           releases.sort((a, b) => {
             if (a.flagged && !b.flagged) return -1;
             if (!a.flagged && b.flagged) return 1;
             return new Date(b.published_at) - new Date(a.published_at);
           });
-          data.set(repo, {
-            repo,
-            releases,
-            releaseCount: releases.length,
-            hasFlagged: releases.some((r) => r.flagged),
-          });
+
+          if (releases.length) {
+            cachedDataMap.set(repo, {
+              repo,
+              releases,
+              releaseCount: releases.length,
+              hasFlagged: releases.some((r) => r.flagged),
+            });
+          } else {
+            cachedDataMap.delete(repo);
+          }
         } catch (err) {
           console.error(`Failed to refresh ${repo}: ${err.message}`);
           errors.push(`Failed to refresh ${repo}: ${err.message}`);
@@ -150,8 +157,10 @@ async function refreshReleases(repos = config.repos) {
     )
   );
 
-  cachedData = [...data.values()].filter((d) => d.releaseCount > 0);
-  cachedData.sort((a, b) => b.releaseCount - a.releaseCount);
+  cachedData = [...cachedDataMap.values()].sort(
+    (a, b) => b.releaseCount - a.releaseCount
+  );
+
   refreshReleases.lastErrors = errors;
   lastUpdateTime = new Date().toLocaleString();
   console.log(" ");
@@ -161,7 +170,7 @@ function renderIndex(res, errorMessage) {
   res.render("index", {
     allReleases: cachedData,
     daysWindow: config.daysWindow,
-    repoList: config.repos.sort((a, b) => a.localeCompare(b)),
+    repoList: [...config.repos].sort((a, b) => a.localeCompare(b)),
     errorMessage: errorMessage || refreshReleases.lastErrors || null,
     rateLimited,
     lastUpdateTime,
