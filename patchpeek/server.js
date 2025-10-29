@@ -25,14 +25,6 @@ const keywords = [
   "important",
 ];
 
-const cutoffDate = (days) => {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d;
-};
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 async function loadConfig() {
   await fs.mkdir(path.dirname(configPath), { recursive: true });
   try {
@@ -44,6 +36,12 @@ async function loadConfig() {
 
 async function saveConfig() {
   await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+}
+
+function cutoffDate(days) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return cutoff;
 }
 
 async function fetchReleases(repo, daysWindow = config.daysWindow) {
@@ -87,6 +85,7 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
 
         if ([502, 503, 504].includes(res.status))
           throw new Error(`Temporary upstream error ${res.status}`);
+
         if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
 
         releases = await res.json();
@@ -99,7 +98,7 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
         console.log(
           `Attempt ${attempt} failed for ${repo}: ${err.message}, retrying in ${delay / 1000}s...`
         );
-        await sleep(delay);
+        await new Promise((r) => setTimeout(r, delay));
       }
     }
 
@@ -242,6 +241,6 @@ app.post("/update-token", async (req, res) => {
 (async () => {
   await loadConfig();
   await refreshReleases();
-  setInterval(refreshReleases, 60 * 60 * 1000);
+  setInterval(refreshReleases, 60 * 60 * 1000); // 1 hour
   app.listen(port, () => console.log(`Server running on :${port}\n`));
 })();
