@@ -179,9 +179,7 @@ function renderIndex(res, errorMessage) {
 function normalizeRepoSlug(input) {
   const match = input
     .trim()
-    .match(
-      /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/]+)(?:\/.*)?$/
-    );
+    .match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/?#]+)/);
   return match ? `${match[1]}/${match[2]}` : input.trim();
 }
 
