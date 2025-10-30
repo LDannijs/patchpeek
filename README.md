@@ -16,7 +16,7 @@ This is very much a passion project from someone without a ton of knowledge on t
 
 - Minimalistic interface
 - Minimal usage of GitHub API tokens
-- Changelogs with breaking changes are highlighted
+- Changelogs with breaking changes are highlighted with red
 - Add repos by GitHub URL or only the author/repo slug
 - Change the amount of days to look back for releases
 

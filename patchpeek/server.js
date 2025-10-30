@@ -26,11 +26,11 @@ const keywords = [
 ];
 
 async function loadConfig() {
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
   try {
-    await fs.mkdir(path.dirname(configPath), { recursive: true });
     config = JSON.parse(await fs.readFile(configPath, "utf-8"));
   } catch {
-    await saveConfig();
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
   }
 }
 
@@ -47,48 +47,68 @@ function cutoffDate(days) {
 async function fetchReleases(repo, daysWindow = config.daysWindow) {
   const allReleases = [];
   const cutoff = cutoffDate(daysWindow);
+  const baseDelay = 5000;
 
   for (let page = 1; ; page++) {
-    const res = await fetch(
-      `https://api.github.com/repos/${repo}/releases?per_page=30&page=${page}`,
-      {
-        headers: {
-          Accept: "application/vnd.github.html+json",
-          Authorization: config.githubToken
-            ? `token ${config.githubToken}`
-            : undefined,
-        },
+    let releases;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(
+          `https://api.github.com/repos/${repo}/releases?per_page=30&page=${page}`,
+          {
+            headers: {
+              Accept: "application/vnd.github.html+json",
+              ...(config.githubToken && {
+                Authorization: `token ${config.githubToken}`,
+              }),
+            },
+          }
+        );
+
+        const rateRemaining = res.headers.get("x-ratelimit-remaining");
+        const rateLimit = res.headers.get("x-ratelimit-limit");
+
+        console.log(
+          `${repo}: ${res.status} | Remaining tokens: ${rateRemaining}/${rateLimit}`
+        );
+
+        if (res.status === 403 && rateRemaining === "0") {
+          rateLimited = true;
+          return allReleases;
+        }
+
+        if (res.status === 404) {
+          const err = new Error("Repository not found or private");
+          err.nonRetryable = true;
+          throw err;
+        }
+
+        if ([502, 503, 504].includes(res.status))
+          throw new Error(`Temporary upstream error ${res.status}`);
+
+        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+
+        releases = await res.json();
+        break;
+      } catch (err) {
+        if (err.nonRetryable) throw err; // skip retries on non-existent repos
+
+        if (attempt === 3) throw err;
+        const delay = baseDelay * 2 ** (attempt - 1);
+        console.log(
+          `Attempt ${attempt} failed for ${repo}: ${err.message}, retrying in ${delay / 1000}s...`
+        );
+        await new Promise((r) => setTimeout(r, delay));
       }
-    );
-
-    console.log(
-      `${repo}: ${res.status} | Remaining tokens: ${res.headers.get("x-ratelimit-remaining")}/${res.headers.get("x-ratelimit-limit")}`
-    );
-
-    if (
-      res.status === 403 &&
-      res.headers.get("x-ratelimit-remaining") === "0"
-    ) {
-      rateLimited = true;
-      return allReleases;
     }
 
-    if (res.status === 404) {
-      throw new Error(`Repository "${repo}" does not exist or is private.`);
-    }
-
-    if (!res.ok) throw new Error(`GitHub API error (${repo}): ${res.status}`);
-
-    const releases = await res.json();
-    if (!releases.length) break;
+    if (!releases?.length) break;
 
     for (const r of releases) {
       if (r.draft || r.prerelease) continue;
       if (new Date(r.published_at) < cutoff) return allReleases;
-
       const body = (r.body_html || "").toLowerCase();
       r.flagged = keywords.some((kw) => body.includes(kw));
-
       allReleases.push(r);
     }
   }
@@ -96,13 +116,16 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
   return allReleases;
 }
 
-async function refreshReleases(reposToRefresh = config.repos) {
-  console.log(`Refreshing ${reposToRefresh.length} repositories`);
+let cachedDataMap = new Map();
+
+async function refreshReleases(repos = config.repos) {
+  console.log(`Refreshing ${repos.length} repositories`);
+  rateLimited = false;
   const cutoff = cutoffDate(config.daysWindow);
   const errors = [];
 
   await Promise.all(
-    reposToRefresh.map((repo) =>
+    repos.map((repo) =>
       limit(async () => {
         try {
           const releases = (await fetchReleases(repo)).filter(
@@ -115,17 +138,16 @@ async function refreshReleases(reposToRefresh = config.repos) {
             return new Date(b.published_at) - new Date(a.published_at);
           });
 
-          const entry = {
-            repo,
-            releases,
-            releaseCount: releases.length,
-            hasFlagged: releases.some((r) => r.flagged),
-          };
-
-          cachedData = [
-            ...cachedData.filter((f) => f.repo !== repo),
-            ...(entry.releaseCount > 0 ? [entry] : []),
-          ];
+          if (releases.length) {
+            cachedDataMap.set(repo, {
+              repo,
+              releases,
+              releaseCount: releases.length,
+              hasFlagged: releases.some((r) => r.flagged),
+            });
+          } else {
+            cachedDataMap.delete(repo);
+          }
         } catch (err) {
           console.error(`Failed to refresh ${repo}: ${err.message}`);
           errors.push(`Failed to refresh ${repo}: ${err.message}`);
@@ -134,13 +156,16 @@ async function refreshReleases(reposToRefresh = config.repos) {
     )
   );
 
-  cachedData.sort((a, b) => b.releaseCount - a.releaseCount);
+  cachedData = [...cachedDataMap.values()].sort(
+    (a, b) => b.releaseCount - a.releaseCount
+  );
+
   refreshReleases.lastErrors = errors;
   lastUpdateTime = new Date().toLocaleString();
   console.log(" ");
 }
 
-function renderIndex(res, { errorMessage } = {}) {
+function renderIndex(res, errorMessage) {
   res.render("index", {
     allReleases: cachedData,
     daysWindow: config.daysWindow,
@@ -152,33 +177,30 @@ function renderIndex(res, { errorMessage } = {}) {
 }
 
 function normalizeRepoSlug(input) {
-  const trimmed = input.trim();
-  const match = trimmed.match(
-    /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/]+)(?:\/.*)?$/
-  );
-  return match ? `${match[1]}/${match[2]}` : trimmed;
+  const match = input
+    .trim()
+    .match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/?#]+)/);
+  return match ? `${match[1]}/${match[2]}` : input.trim();
 }
 
 app.get("/", async (req, res) => {
-  if (cachedData.length === 0) await refreshReleases();
+  if (!cachedData.length) await refreshReleases();
   renderIndex(res);
 });
 
 app.get("/debug", (req, res) => res.json(cachedData));
 
 app.post("/add-repo", async (req, res) => {
-  const repoInput = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
-
-  if (config.repos.includes(repoInput))
-    return renderIndex(res, { errorMessage: ["Repository already added"] });
-
+  const repo = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
+  if (config.repos.includes(repo))
+    return renderIndex(res, ["Repository already added"]);
   try {
-    await refreshReleases([repoInput]);
-    config.repos.push(repoInput);
+    await refreshReleases([repo]);
+    config.repos.push(repo);
     await saveConfig();
     res.redirect("/");
   } catch (err) {
-    renderIndex(res, { errorMessage: [`Failed to fetch: ${err.message}`] });
+    renderIndex(res, [`Failed to fetch: ${err.message}`]);
   }
 });
 
@@ -186,18 +208,16 @@ app.post("/remove-repo", async (req, res) => {
   const repo = req.body.repoSlug.trim();
   config.repos = config.repos.filter((r) => r !== repo);
   cachedData = cachedData.filter((r) => r.repo !== repo);
-  if (refreshReleases.lastErrors?.length) {
-    refreshReleases.lastErrors = refreshReleases.lastErrors.filter(
-      (err) => !err.includes(repo)
-    );
-  }
+  refreshReleases.lastErrors = (refreshReleases.lastErrors || []).filter(
+    (e) => !e.includes(repo)
+  );
   await saveConfig();
   res.redirect("/");
 });
 
 app.post("/update-days", async (req, res) => {
   const days = parseInt(req.body.daysWindow, 10);
-  if (!isNaN(days) && days > 0) {
+  if (days > 0) {
     config.daysWindow = days;
     await saveConfig();
     await refreshReleases();
@@ -207,13 +227,10 @@ app.post("/update-days", async (req, res) => {
 
 app.post("/update-token", async (req, res) => {
   const token = req.body.githubToken?.trim();
-  if (token && !/^github_pat_|^ghp_/.test(token)) {
-    return renderIndex(res, {
-      errorMessage: [
-        "Invalid GitHub token format. It should start with 'github_pat_' or 'ghp_'.",
-      ],
-    });
-  }
+  if (token && !/^github_pat_|^ghp_/.test(token))
+    return renderIndex(res, [
+      "Invalid GitHub token format. It should start with 'github_pat_' or 'ghp_'",
+    ]);
   config.githubToken = token;
   await saveConfig();
   res.redirect("/");
@@ -223,7 +240,5 @@ app.post("/update-token", async (req, res) => {
   await loadConfig();
   await refreshReleases();
   setInterval(refreshReleases, 60 * 60 * 1000); // 1 hour
-  app.listen(port, () =>
-    console.log(`Server running at http://0.0.0.0:${port}\n`)
-  );
+  app.listen(port, () => console.log(`Server running on :${port}\n`));
 })();
