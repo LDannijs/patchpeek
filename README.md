@@ -27,13 +27,9 @@ This is very much a passion project from someone without a ton of knowledge on t
 - The app pulls releases from the GitHub API every 1 hour, which should provide enough requests for your needs without a GitHub token (but it is recommended to add one).
 
 ## Docker Compose
-
-> [!NOTE]
-> The container runs as root, but has the option to run rootless. Read the Important note carefully.
-
 - Create a directory and add a `docker-compose.yaml` file with the following contents:
 
-```
+```yaml
 services:
   patchpeek:
     image: ghcr.io/ldannijs/patchpeek:latest
@@ -50,7 +46,7 @@ services:
 > [!IMPORTANT]
 > To run the container as rootless, uncomment the line as seen in the compose file, and then make sure you run:
 >
-> ```
+> ```bash
 > sudo chown -R 1000:1000 ./data
 > ```
 
