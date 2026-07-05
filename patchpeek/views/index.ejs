@@ -44,7 +44,7 @@
     </div>
     <div class="layout">
       <div class="content">
-        <% if (errorMessage.length) { %>
+        <% if (errorMessage && errorMessage.length) { %>
           <div class="banner">
             <div class="errorMessage">
               <% errorMessage.forEach(err => { %>

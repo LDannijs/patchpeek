@@ -15,6 +15,9 @@ app.use(express.static(path.resolve("./patchpeek/public")));
 
 let config = { repos: [], daysWindow: 31, githubToken: "" };
 let cachedData = [];
+let cachedDataMap = new Map();
+let lastErrors = [];
+let cachedHtml = null;
 let lastUpdateTime = null;
 let rateLimited = false;
 
@@ -62,14 +65,14 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
                 Authorization: `token ${config.githubToken}`,
               }),
             },
-          }
+          },
         );
 
         const rateRemaining = res.headers.get("x-ratelimit-remaining");
         const rateLimit = res.headers.get("x-ratelimit-limit");
 
         console.log(
-          `${repo}: ${res.status} | Remaining tokens: ${rateRemaining}/${rateLimit}`
+          `${repo}: ${res.status} | Remaining tokens: ${rateRemaining}/${rateLimit}`,
         );
 
         if (res.status === 403 && rateRemaining === "0") {
@@ -96,7 +99,7 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
         if (attempt === 3) throw err;
         const delay = baseDelay * 2 ** (attempt - 1);
         console.log(
-          `Attempt ${attempt} failed for ${repo}: ${err.message}, retrying in ${delay / 1000}s...`
+          `Attempt ${attempt} failed for ${repo}: ${err.message}, retrying in ${delay / 1000}s...`,
         );
         await new Promise((r) => setTimeout(r, delay));
       }
@@ -116,21 +119,16 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
   return allReleases;
 }
 
-let cachedDataMap = new Map();
-
 async function refreshReleases(repos = config.repos) {
   console.log(`Refreshing ${repos.length} repositories`);
   rateLimited = false;
-  const cutoff = cutoffDate(config.daysWindow);
   const errors = [];
 
   await Promise.all(
     repos.map((repo) =>
       limit(async () => {
         try {
-          const releases = (await fetchReleases(repo)).filter(
-            (r) => new Date(r.published_at) >= cutoff
-          );
+          const releases = await fetchReleases(repo);
 
           releases.sort((a, b) => {
             if (a.flagged && !b.flagged) return -1;
@@ -152,27 +150,49 @@ async function refreshReleases(repos = config.repos) {
           console.error(`Failed to refresh ${repo}: ${err.message}`);
           errors.push(`Failed to refresh ${repo}: ${err.message}`);
         }
-      })
-    )
+      }),
+    ),
   );
 
-  cachedData = [...cachedDataMap.values()].sort(
-    (a, b) => b.releaseCount - a.releaseCount
-  );
+  cachedData = [...cachedDataMap.values()].sort((a, b) => {
+    if (b.releaseCount !== a.releaseCount)
+      return b.releaseCount - a.releaseCount;
+    return a.repo.localeCompare(b.repo);
+  });
 
-  refreshReleases.lastErrors = errors;
+  lastErrors = errors;
   lastUpdateTime = new Date().toLocaleString();
-  console.log(" ");
+
+  cachedHtml = null;
+
+  try {
+    await buildIndexHtml();
+  } catch (err) {
+    console.error("Failed to build index HTML:", err);
+  }
 }
 
-function renderIndex(res, errorMessage) {
-  res.render("index", {
+function buildIndexModel(errorMessage = null) {
+  return {
     allReleases: cachedData,
     daysWindow: config.daysWindow,
-    repoList: [...config.repos].sort((a, b) => a.localeCompare(b)),
-    errorMessage: errorMessage || refreshReleases.lastErrors || null,
+    repoList: config.repos,
+    errorMessage: errorMessage ?? (lastErrors.length ? lastErrors : null),
     rateLimited,
     lastUpdateTime,
+  };
+}
+
+function renderIndex(res, errorMessage = null) {
+  return res.render("index", buildIndexModel(errorMessage));
+}
+
+async function buildIndexHtml(errorMessage = null) {
+  cachedHtml = await new Promise((resolve, reject) => {
+    app.render("index", buildIndexModel(errorMessage), (err, html) => {
+      if (err) return reject(err);
+      resolve(html);
+    });
   });
 }
 
@@ -184,7 +204,10 @@ function normalizeRepoSlug(input) {
 }
 
 app.get("/", async (req, res) => {
-  if (!cachedData.length) await refreshReleases();
+  if (cachedHtml) {
+    return res.send(cachedHtml);
+  }
+
   renderIndex(res);
 });
 
@@ -192,12 +215,16 @@ app.get("/debug", (req, res) => res.json(cachedData));
 
 app.post("/add-repo", async (req, res) => {
   const repo = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
-  if (config.repos.includes(repo))
+  if (config.repos.includes(repo)) {
     return renderIndex(res, ["Repository already added"]);
+  }
+
   try {
-    await refreshReleases([repo]);
     config.repos.push(repo);
+
+    await refreshReleases([repo]);
     await saveConfig();
+
     res.redirect("/");
   } catch (err) {
     renderIndex(res, [`Failed to fetch: ${err.message}`]);
@@ -208,10 +235,13 @@ app.post("/remove-repo", async (req, res) => {
   const repo = req.body.repoSlug.trim();
   config.repos = config.repos.filter((r) => r !== repo);
   cachedData = cachedData.filter((r) => r.repo !== repo);
-  refreshReleases.lastErrors = (refreshReleases.lastErrors || []).filter(
-    (e) => !e.includes(repo)
-  );
+  cachedDataMap.delete(repo);
+
+  lastErrors = lastErrors.filter((e) => !e.includes(repo));
+
   await saveConfig();
+  await buildIndexHtml();
+
   res.redirect("/");
 });
 
@@ -227,18 +257,34 @@ app.post("/update-days", async (req, res) => {
 
 app.post("/update-token", async (req, res) => {
   const token = req.body.githubToken?.trim();
-  if (token && !/^github_pat_|^ghp_/.test(token))
+  if (token && !/^github_pat_|^ghp_/.test(token)) {
     return renderIndex(res, [
       "Invalid GitHub token format. It should start with 'github_pat_' or 'ghp_'",
     ]);
+  }
+
   config.githubToken = token;
+
   await saveConfig();
+  await refreshReleases();
+
   res.redirect("/");
 });
+
+async function refreshLoop() {
+  while (true) {
+    await new Promise((r) => setTimeout(r, 60 * 60 * 1000));
+    await refreshReleases();
+  }
+}
 
 (async () => {
   await loadConfig();
   await refreshReleases();
-  setInterval(refreshReleases, 60 * 60 * 1000); // 1 hour
+
+  refreshLoop().catch((err) => {
+    console.error("Refresh loop stopped:", err);
+  });
+
   app.listen(port, () => console.log(`Server running on :${port}\n`));
 })();
