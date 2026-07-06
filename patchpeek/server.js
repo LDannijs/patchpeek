@@ -15,7 +15,7 @@ app.use(express.static(path.resolve("./patchpeek/public")));
 
 let config = { repos: [], daysWindow: 31, githubToken: "" };
 
-let cachedDataByRepo = new Map();
+let cachedDataMap = new Map();
 let cachedIndexHtml = null;
 let lastErrors = [];
 let lastUpdateTime = null;
@@ -137,14 +137,14 @@ async function refreshReleases(repos = config.repos) {
           });
 
           if (releases.length) {
-            cachedDataByRepo.set(repo, {
+            cachedDataMap.set(repo, {
               repo,
               releases,
               releaseCount: releases.length,
               hasFlagged: releases.some((r) => r.flagged),
             });
           } else {
-            cachedDataByRepo.delete(repo);
+            cachedDataMap.delete(repo);
           }
         } catch (err) {
           console.error(`Failed to refresh ${repo}: ${err.message}`);
@@ -168,7 +168,7 @@ async function refreshReleases(repos = config.repos) {
 }
 
 function buildIndexModel(errorMessage = null) {
-  const allReleases = [...cachedDataByRepo.values()].sort((a, b) => {
+  const allReleases = [...cachedDataMap.values()].sort((a, b) => {
     if (b.releaseCount !== a.releaseCount)
       return b.releaseCount - a.releaseCount;
     return a.repo.localeCompare(b.repo);
@@ -235,7 +235,7 @@ app.post("/add-repo", async (req, res) => {
 app.post("/remove-repo", async (req, res) => {
   const repo = req.body.repoSlug.trim();
   config.repos = config.repos.filter((r) => r !== repo);
-  cachedDataByRepo.delete(repo);
+  cachedDataMap.delete(repo);
 
   lastErrors = lastErrors.filter((e) => !e.includes(repo));
 
