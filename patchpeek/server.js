@@ -14,10 +14,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.resolve("./patchpeek/public")));
 
 let config = { repos: [], daysWindow: 31, githubToken: "" };
-let cachedData = [];
-let cachedDataMap = new Map();
+
+let cachedDataByRepo = new Map();
+let cachedIndexHtml = null;
 let lastErrors = [];
-let cachedHtml = null;
 let lastUpdateTime = null;
 let rateLimited = false;
 
@@ -137,14 +137,14 @@ async function refreshReleases(repos = config.repos) {
           });
 
           if (releases.length) {
-            cachedDataMap.set(repo, {
+            cachedDataByRepo.set(repo, {
               repo,
               releases,
               releaseCount: releases.length,
               hasFlagged: releases.some((r) => r.flagged),
             });
           } else {
-            cachedDataMap.delete(repo);
+            cachedDataByRepo.delete(repo);
           }
         } catch (err) {
           console.error(`Failed to refresh ${repo}: ${err.message}`);
@@ -154,16 +154,11 @@ async function refreshReleases(repos = config.repos) {
     ),
   );
 
-  cachedData = [...cachedDataMap.values()].sort((a, b) => {
-    if (b.releaseCount !== a.releaseCount)
-      return b.releaseCount - a.releaseCount;
-    return a.repo.localeCompare(b.repo);
-  });
-
   lastErrors = errors;
   lastUpdateTime = new Date().toLocaleString();
 
-  cachedHtml = null;
+  // Invalidate cached HTML so next request re-renders with new data
+  cachedIndexHtml = null;
 
   try {
     await buildIndexHtml();
@@ -173,8 +168,14 @@ async function refreshReleases(repos = config.repos) {
 }
 
 function buildIndexModel(errorMessage = null) {
+  const allReleases = [...cachedDataByRepo.values()].sort((a, b) => {
+    if (b.releaseCount !== a.releaseCount)
+      return b.releaseCount - a.releaseCount;
+    return a.repo.localeCompare(b.repo);
+  });
+
   return {
-    allReleases: cachedData,
+    allReleases,
     daysWindow: config.daysWindow,
     repoList: config.repos,
     errorMessage: errorMessage ?? (lastErrors.length ? lastErrors : null),
@@ -188,7 +189,7 @@ function renderIndex(res, errorMessage = null) {
 }
 
 async function buildIndexHtml(errorMessage = null) {
-  cachedHtml = await new Promise((resolve, reject) => {
+  cachedIndexHtml = await new Promise((resolve, reject) => {
     app.render("index", buildIndexModel(errorMessage), (err, html) => {
       if (err) return reject(err);
       resolve(html);
@@ -204,17 +205,17 @@ function normalizeRepoSlug(input) {
 }
 
 app.get("/", async (req, res) => {
-  if (cachedHtml) {
-    return res.send(cachedHtml);
-  }
-
+  if (cachedIndexHtml) return res.send(cachedIndexHtml);
   renderIndex(res);
 });
 
-app.get("/debug", (req, res) => res.json(cachedData));
+app.get("/debug", (req, res) => res.json(buildIndexModel().allReleases));
 
 app.post("/add-repo", async (req, res) => {
-  const repo = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
+  const raw = (req.body.repoSlug || "").toString();
+  const repo = normalizeRepoSlug(raw.toLowerCase());
+
+  if (!repo) return renderIndex(res, ["Invalid repository slug"]);
   if (config.repos.includes(repo)) {
     return renderIndex(res, ["Repository already added"]);
   }
@@ -234,8 +235,7 @@ app.post("/add-repo", async (req, res) => {
 app.post("/remove-repo", async (req, res) => {
   const repo = req.body.repoSlug.trim();
   config.repos = config.repos.filter((r) => r !== repo);
-  cachedData = cachedData.filter((r) => r.repo !== repo);
-  cachedDataMap.delete(repo);
+  cachedDataByRepo.delete(repo);
 
   lastErrors = lastErrors.filter((e) => !e.includes(repo));
 
@@ -271,20 +271,23 @@ app.post("/update-token", async (req, res) => {
   res.redirect("/");
 });
 
-async function refreshLoop() {
-  while (true) {
-    await new Promise((r) => setTimeout(r, 60 * 60 * 1000));
-    await refreshReleases();
-  }
-}
-
-(async () => {
+async function startServer() {
   await loadConfig();
   await refreshReleases();
 
-  refreshLoop().catch((err) => {
+  (async () => {
+    while (true) {
+      await new Promise((r) => setTimeout(r, 60 * 60 * 1000)); // Refresh every hour
+      await refreshReleases();
+    }
+  })().catch((err) => {
     console.error("Refresh loop stopped:", err);
   });
 
   app.listen(port, () => console.log(`Server running on :${port}\n`));
-})();
+}
+
+startServer().catch((err) => {
+  console.error("Startup failed:", err);
+  process.exit(1);
+});
