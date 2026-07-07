@@ -169,6 +169,18 @@ async function refreshReleases(repos = config.repos) {
   return errors;
 }
 
+function compareRepoSlugs(a, b) {
+  //sort by repo name in sidebar
+  const getRepoSortKey = (repoSlug) => {
+    const [, repoName = ""] = repoSlug.split("/");
+    return (repoName || repoSlug).toLowerCase();
+  };
+
+  const repoCompare = getRepoSortKey(a).localeCompare(getRepoSortKey(b));
+  if (repoCompare !== 0) return repoCompare;
+  return a.localeCompare(b, undefined, { sensitivity: "base" });
+}
+
 function buildIndexModel(errors = null) {
   const allReleases = [...cachedDataMap.values()].sort((a, b) => {
     if (b.releaseCount !== a.releaseCount)
@@ -185,7 +197,7 @@ function buildIndexModel(errors = null) {
   return {
     allReleases,
     daysWindow: config.daysWindow,
-    repoList: config.repos,
+    repoList: [...config.repos].sort(compareRepoSlugs),
     errorMessage,
     rateLimited,
     lastUpdateTime,
@@ -237,6 +249,8 @@ app.post("/add-repo", async (req, res) => {
 
     config.repos.push(repo);
     await saveConfig();
+    cachedIndexHtml = null;
+    await buildIndexHtml();
 
     res.redirect("/");
   } catch (err) {
