@@ -160,7 +160,7 @@ async function refreshReleases(repos = config.repos) {
 
   lastUpdateTime = new Date().toLocaleString();
 
-  // Invalidate cached HTML so next request re-renders with new data
+  // Invalidate cached HTML before rebuilding it.
   cachedIndexHtml = null;
 
   if (!errors.length) {
@@ -186,36 +186,33 @@ function compareRepoSlugs(a, b) {
   return a.localeCompare(b, undefined, { sensitivity: "base" });
 }
 
-function buildIndexModel(errors = null) {
+function buildIndexModel() {
   const allReleases = [...cachedDataMap.values()].sort((a, b) => {
     if (b.releaseCount !== a.releaseCount)
       return b.releaseCount - a.releaseCount;
     return a.repo.localeCompare(b.repo);
   });
 
-  const errorMessage = Array.isArray(errors)
-    ? errors
-    : errors
-      ? [errors]
-      : null;
-
   return {
     allReleases,
     daysWindow: config.daysWindow,
     repoList: [...config.repos].sort(compareRepoSlugs),
-    errorMessage,
+    errorMessage: null,
     rateLimited,
     lastUpdateTime,
   };
 }
 
 function renderIndex(res, errors = null) {
-  return res.render("index", buildIndexModel(errors));
+  return res.render("index", {
+    ...buildIndexModel(),
+    errorMessage: Array.isArray(errors) ? errors : errors ? [errors] : null,
+  });
 }
 
-async function buildIndexHtml(errors = null) {
+async function buildIndexHtml() {
   cachedIndexHtml = await new Promise((resolve, reject) => {
-    app.render("index", buildIndexModel(errors), (err, html) => {
+    app.render("index", buildIndexModel(), (err, html) => {
       if (err) return reject(err);
       resolve(html);
     });
@@ -229,9 +226,9 @@ function normalizeRepoSlug(input) {
   return match ? `${match[1]}/${match[2]}` : input.trim();
 }
 
-app.get("/", async (req, res) => {
+app.get("/", (req, res) => {
   if (cachedIndexHtml) return res.send(cachedIndexHtml);
-  renderIndex(res);
+  return renderIndex(res);
 });
 
 app.get("/debug", (req, res) => res.json(buildIndexModel().allReleases));
@@ -246,20 +243,29 @@ app.post("/add-repo", async (req, res) => {
   }
 
   try {
+    config.repos.push(repo);
+
+    try {
+      await saveConfig();
+    } catch (err) {
+      config.repos = config.repos.filter((r) => r !== repo);
+      throw err;
+    }
+
     const refreshErrors = await refreshReleases([repo]);
 
     if (refreshErrors.length) {
+      config.repos = config.repos.filter((r) => r !== repo);
+      cachedDataMap.delete(repo);
+      cachedIndexHtml = null;
+
+      await saveConfig();
       return renderIndex(res, refreshErrors);
     }
 
-    config.repos.push(repo);
-    await saveConfig();
-    cachedIndexHtml = null;
-    await buildIndexHtml();
-
     res.redirect("/");
   } catch (err) {
-    renderIndex(res, [`Failed to fetch: ${err.message}`]);
+    return renderIndex(res, [`Failed to fetch: ${err.message}`]);
   }
 });
 

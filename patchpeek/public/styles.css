@@ -342,8 +342,12 @@ a.releaseName:hover {
 
 label {
   display: inline-block;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: #ffffff;
+}
+
+label[for="githubToken"] {
+  margin: 5px 0px;
 }
 
 input[type="text"],
