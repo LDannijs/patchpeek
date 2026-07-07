@@ -126,6 +126,8 @@ h2 {
   cursor: pointer;
   background: none;
   border: none;
+  color: inherit;
+  text-decoration: none;
   transition: 0.3s;
 }
 .dismiss-button:hover {

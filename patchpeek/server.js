@@ -17,7 +17,6 @@ let config = { repos: [], daysWindow: 31, githubToken: "" };
 
 let cachedDataMap = new Map();
 let cachedIndexHtml = null;
-let lastErrors = [];
 let lastUpdateTime = null;
 let rateLimited = false;
 
@@ -154,43 +153,52 @@ async function refreshReleases(repos = config.repos) {
     ),
   );
 
-  lastErrors = errors;
   lastUpdateTime = new Date().toLocaleString();
 
   // Invalidate cached HTML so next request re-renders with new data
   cachedIndexHtml = null;
 
-  try {
-    await buildIndexHtml();
-  } catch (err) {
-    console.error("Failed to build index HTML:", err);
+  if (!errors.length) {
+    try {
+      await buildIndexHtml();
+    } catch (err) {
+      console.error("Failed to build index HTML:", err);
+    }
   }
+
+  return errors;
 }
 
-function buildIndexModel(errorMessage = null) {
+function buildIndexModel(errors = null) {
   const allReleases = [...cachedDataMap.values()].sort((a, b) => {
     if (b.releaseCount !== a.releaseCount)
       return b.releaseCount - a.releaseCount;
     return a.repo.localeCompare(b.repo);
   });
 
+  const errorMessage = Array.isArray(errors)
+    ? errors
+    : errors
+      ? [errors]
+      : null;
+
   return {
     allReleases,
     daysWindow: config.daysWindow,
     repoList: config.repos,
-    errorMessage: errorMessage ?? (lastErrors.length ? lastErrors : null),
+    errorMessage,
     rateLimited,
     lastUpdateTime,
   };
 }
 
-function renderIndex(res, errorMessage = null) {
-  return res.render("index", buildIndexModel(errorMessage));
+function renderIndex(res, errors = null) {
+  return res.render("index", buildIndexModel(errors));
 }
 
-async function buildIndexHtml(errorMessage = null) {
+async function buildIndexHtml(errors = null) {
   cachedIndexHtml = await new Promise((resolve, reject) => {
-    app.render("index", buildIndexModel(errorMessage), (err, html) => {
+    app.render("index", buildIndexModel(errors), (err, html) => {
       if (err) return reject(err);
       resolve(html);
     });
@@ -221,9 +229,13 @@ app.post("/add-repo", async (req, res) => {
   }
 
   try {
-    config.repos.push(repo);
+    const refreshErrors = await refreshReleases([repo]);
 
-    await refreshReleases([repo]);
+    if (refreshErrors.length) {
+      return renderIndex(res, refreshErrors);
+    }
+
+    config.repos.push(repo);
     await saveConfig();
 
     res.redirect("/");
@@ -236,8 +248,6 @@ app.post("/remove-repo", async (req, res) => {
   const repo = req.body.repoSlug.trim();
   config.repos = config.repos.filter((r) => r !== repo);
   cachedDataMap.delete(repo);
-
-  lastErrors = lastErrors.filter((e) => !e.includes(repo));
 
   await saveConfig();
   await buildIndexHtml();

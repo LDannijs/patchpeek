@@ -51,11 +51,11 @@
                 <p><%= err %></p>
               <% }) %>
             </div>
-            <button
+            <a
               class="dismiss-button"
-              onclick="window.location='/'"
+              href="/"
               aria-label="Dismiss error message"
-            >&times;</button>
+            >&times;</a>
           </div>
         <% } %>
         <% if (rateLimited) { %>
