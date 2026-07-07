@@ -31,13 +31,18 @@ async function loadConfig() {
   await fs.mkdir(path.dirname(configPath), { recursive: true });
   try {
     config = JSON.parse(await fs.readFile(configPath, "utf-8"));
-  } catch {
-    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
+    } else {
+      console.error(`Unable to load config: ${err.message}`);
+      // Keep defaults when config is invalid, but do not overwrite the file.
+    }
   }
 }
 
 async function saveConfig() {
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
 }
 
 function cutoffDate(days) {
@@ -271,11 +276,13 @@ app.post("/remove-repo", async (req, res) => {
 
 app.post("/update-days", async (req, res) => {
   const days = parseInt(req.body.daysWindow, 10);
-  if (days > 0) {
-    config.daysWindow = days;
-    await saveConfig();
-    await refreshReleases();
+  if (!Number.isInteger(days) || days <= 0) {
+    return renderIndex(res, ["Invalid days value. Enter a positive integer."]);
   }
+
+  config.daysWindow = days;
+  await saveConfig();
+  await refreshReleases();
   res.redirect("/");
 });
 
