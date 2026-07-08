@@ -20,6 +20,8 @@ let indexSnapshotHtml = null;
 let lastUpdateTime = null;
 let rateLimited = false;
 let refreshing = false;
+let lastRateRemaining = null;
+let lastRateLimit = null;
 
 const keywords = [
   "breaking change",
@@ -72,9 +74,8 @@ async function fetchReleasePage(repo, page) {
       const rateRemaining = res.headers.get("x-ratelimit-remaining");
       const rateLimit = res.headers.get("x-ratelimit-limit");
 
-      console.log(
-        `${repo}: ${res.status} | Remaining tokens: ${rateRemaining}/${rateLimit}`,
-      );
+      if (rateRemaining !== null) lastRateRemaining = rateRemaining;
+      if (rateLimit !== null) lastRateLimit = rateLimit;
 
       if (res.status === 403 && rateRemaining === "0") {
         rateLimited = true;
@@ -135,6 +136,7 @@ async function refreshReleases(repos = config.repos) {
   console.log(`Refreshing ${repos.length} repositories`);
   rateLimited = false;
   const errors = [];
+  let successfulCount = 0;
 
   await Promise.all(
     repos.map((repo) =>
@@ -158,6 +160,8 @@ async function refreshReleases(repos = config.repos) {
           } else {
             cachedDataMap.delete(repo);
           }
+
+          successfulCount += 1;
         } catch (err) {
           console.error(`Failed to refresh ${repo}: ${err.message}`);
           errors.push(`Failed to refresh ${repo}: ${err.message}`);
@@ -167,6 +171,10 @@ async function refreshReleases(repos = config.repos) {
   );
 
   lastUpdateTime = new Date().toLocaleString();
+
+  console.log(
+    `Refreshed ${successfulCount}/${repos.length} repos. Remaining tokens: ${lastRateRemaining ?? "unknown"}/${lastRateLimit ?? "unknown"}`,
+  );
 
   // Invalidate cached HTML before rebuilding it.
   indexSnapshotHtml = null;
