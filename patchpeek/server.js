@@ -250,12 +250,7 @@ app.post("/refresh", async (req, res) => {
   refreshing = true;
 
   try {
-    const errors = await refreshReleases();
-
-    if (errors.length) {
-      return renderIndex(res, errors);
-    }
-
+    await refreshReleases();
     res.redirect("/");
   } finally {
     refreshing = false;
