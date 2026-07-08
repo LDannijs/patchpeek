@@ -163,9 +163,27 @@ h2 {
   text-wrap: nowrap;
 }
 
+.refreshButton {
+  margin-left: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 16px;
+  border-radius: 15px;
+  border: 1px solid #707070;
+  padding: 10px 15px;
+  color: #ffffff;
+  background: #232323;
+  user-select: none;
+  -moz-user-select: none;
+}
+
+.refreshButton:hover {
+  background: #505050;
+}
+
 .settings {
   position: relative;
-  margin-left: 20px;
+  margin-left: 10px;
   margin-bottom: auto;
   background: #232323;
 }

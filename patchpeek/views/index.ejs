@@ -15,6 +15,11 @@
     <div class="header">
       <h1 class="title"><img class="logo" src="/favicon.svg"> PatchPeek</h1>
       <p class="lastUpdated">Last updated: <%= lastUpdateTime %></p>
+      <form method="POST" action="/refresh" class="refreshForm">
+        <button class="refreshButton" type="submit">
+          Refresh
+        </button>
+      </form>
       <details class="settings">
         <summary class="settingsSummary">
           <p class="settingsTitle" >Settings</p>
