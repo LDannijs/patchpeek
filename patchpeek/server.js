@@ -179,12 +179,10 @@ async function refreshReleases(repos = config.repos) {
   // Invalidate cached HTML before rebuilding it.
   indexSnapshotHtml = null;
 
-  if (!errors.length) {
-    try {
-      await buildIndexHtml();
-    } catch (err) {
-      console.error("Failed to build index HTML:", err);
-    }
+  try {
+    await buildIndexHtml(errors);
+  } catch (err) {
+    console.error("Failed to build index HTML:", err);
   }
 
   return errors;
@@ -202,7 +200,7 @@ function compareRepoSlugs(a, b) {
   return a.localeCompare(b, undefined, { sensitivity: "base" });
 }
 
-function buildIndexModel() {
+function buildIndexModel(errors = null) {
   const allReleases = [...cachedDataMap.values()].sort((a, b) => {
     if (b.releaseCount !== a.releaseCount)
       return b.releaseCount - a.releaseCount;
@@ -213,22 +211,19 @@ function buildIndexModel() {
     allReleases,
     daysWindow: config.daysWindow,
     repoList: [...config.repos].sort(compareRepoSlugs),
-    errorMessage: null,
+    errorMessage: Array.isArray(errors) ? errors : errors ? [errors] : null,
     rateLimited,
     lastUpdateTime,
   };
 }
 
 function renderIndex(res, errors = null) {
-  return res.render("index", {
-    ...buildIndexModel(),
-    errorMessage: Array.isArray(errors) ? errors : errors ? [errors] : null,
-  });
+  return res.render("index", buildIndexModel(errors));
 }
 
-async function buildIndexHtml() {
+async function buildIndexHtml(errors = null) {
   indexSnapshotHtml = await new Promise((resolve, reject) => {
-    app.render("index", buildIndexModel(), (err, html) => {
+    app.render("index", buildIndexModel(errors), (err, html) => {
       if (err) return reject(err);
       resolve(html);
     });
