@@ -44,10 +44,6 @@ async function loadConfig() {
   }
 }
 
-async function saveConfig() {
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
-}
-
 function cutoffDate(days) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
@@ -260,8 +256,7 @@ app.post("/refresh", async (req, res) => {
 app.get("/debug", (req, res) => res.json(buildIndexModel().allReleases));
 
 app.post("/add-repo", async (req, res) => {
-  const raw = (req.body.repoSlug || "").toString();
-  const repo = normalizeRepoSlug(raw.toLowerCase());
+  const repo = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
 
   if (!repo) return renderIndex(res, ["Invalid repository slug"]);
   if (config.repos.includes(repo)) {
@@ -272,7 +267,7 @@ app.post("/add-repo", async (req, res) => {
     config.repos.push(repo);
 
     try {
-      await saveConfig();
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
     } catch (err) {
       config.repos = config.repos.filter((r) => r !== repo);
       throw err;
@@ -285,7 +280,7 @@ app.post("/add-repo", async (req, res) => {
       cachedDataMap.delete(repo);
       indexSnapshotHtml = null;
 
-      await saveConfig();
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
       return renderIndex(res, refreshErrors);
     }
 
@@ -300,7 +295,7 @@ app.post("/remove-repo", async (req, res) => {
   config.repos = config.repos.filter((r) => r !== repo);
   cachedDataMap.delete(repo);
 
-  await saveConfig();
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
   await buildIndexHtml();
 
   res.redirect("/");
@@ -313,7 +308,7 @@ app.post("/update-days", async (req, res) => {
   }
 
   config.daysWindow = days;
-  await saveConfig();
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
   await refreshReleases();
   res.redirect("/");
 });
@@ -328,27 +323,25 @@ app.post("/update-token", async (req, res) => {
 
   config.githubToken = token;
 
-  await saveConfig();
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
   await refreshReleases();
 
   res.redirect("/");
 });
 
-async function startServer() {
-  await loadConfig();
-  await refreshReleases();
-
-  setInterval(
-    () => {
-      refreshReleases().catch(console.error);
-    },
-    60 * 60 * 1000,
-  );
-
-  app.listen(port, () => console.log(`Server running on :${port}\n`));
-}
-
-startServer().catch((err) => {
-  console.error("Startup failed:", err);
-  process.exit(1);
-});
+(async () => {
+  try {
+    await loadConfig();
+    await refreshReleases();
+    setInterval(
+      () => {
+        void refreshReleases().catch(console.error);
+      },
+      60 * 60 * 1000,
+    );
+    app.listen(port, () => console.log(`Server running on :${port}\n`));
+  } catch (err) {
+    console.error("Startup failed:", err);
+    process.exit(1);
+  }
+})();
