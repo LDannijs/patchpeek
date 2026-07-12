@@ -22,11 +22,14 @@ This is very much a passion project from someone without a ton of knowledge on t
 
 ## IMPORTANT INFO
 
-- This app is intended to have a window of 31 days (My personal interval of updating containers) and while it does work if you enter 365 days for example, be aware of heavy GitHub API usage and longer load times. Just so you know, I am not condoning usage this far back, as I have not tested the rigidity of it.
+- The app renders the HTML in the background, not on page load. This is to avoid images not showing up cause of the URL expiring. Considering release markdown doesn't need second-accurate info, this is an acceptable tradeoff.
+
+- This app is intended for a pull window of 31 days (My personal interval of updating containers). While it does work if you enter 365 days (for example), be aware of heavy GitHub API usage and longer load times. I am not condoning usage this far back, as I have not tested the rigidity of it.
 
 - The app pulls releases from the GitHub API every 1 hour, which should provide enough requests for your needs without a GitHub token (but it is recommended to add one).
 
 ## Docker Compose
+
 - Create a directory and add a `docker-compose.yaml` file with the following contents:
 
 ```yaml
