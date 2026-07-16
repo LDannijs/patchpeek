@@ -16,21 +16,43 @@ body {
   margin: 0;
   background: #222222;
   color: #ffffff;
-  min-width: 450px;
+  min-width: 320px;
 }
 
 @media (max-width: 1800px) {
   body {
-    padding: 15px 30px 30px;
+    padding: 15px 15px 30px;
   }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 850px) {
+  .layout {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 750px) {
   .lastUpdated {
-    display: none;
+    margin-left: unset !important;
   }
   .settings {
     margin-left: auto !important;
+  }
+  .refreshForm {
+    flex-basis: 50%;
+  }
+}
+
+@media (max-width: 560px) {
+  .lastUpdated {
+    width: 100%;
+  }
+  .releaseCount {
+    justify-content: end !important;
+  }
+  .markdown-body .highlight pre,
+  .markdown-body pre {
+    font-size: 60% !important;
   }
 }
 
@@ -48,12 +70,12 @@ h2 {
 
 .content {
   flex: 4;
-  min-width: 450px;
+  min-width: 320px;
 }
 
 .sidebar {
   flex: 1;
-  min-width: 350px;
+  min-width: 280px;
   padding: 20px;
   background: var(--cards-color);
   border-radius: 15px;
@@ -138,10 +160,12 @@ h2 {
 
 .header {
   display: flex;
+  flex-wrap: wrap;
   padding: 10px 15px;
   background: var(--cards-color);
   border-radius: 15px;
   margin-bottom: 20px;
+  min-width: 290px;
 }
 
 .logo {
@@ -152,6 +176,7 @@ h2 {
 .lastUpdated {
   margin-left: auto;
   margin-top: auto;
+  padding: 10px 10px;
   margin-bottom: auto;
 }
 
@@ -164,7 +189,6 @@ h2 {
 }
 
 .refreshButton {
-  margin-left: 10px;
   cursor: pointer;
   font-weight: 700;
   font-size: 16px;
@@ -313,7 +337,7 @@ summary.flagged {
 }
 
 .releaseDiv {
-  padding: 0 15px 1px;
+  padding: 0 10px 1px;
 }
 
 details.release {
@@ -336,6 +360,7 @@ a.releaseName:hover {
   background: #222222 !important;
   border-radius: 15px;
   display: inline-block;
+  overflow-wrap: anywhere !important;
 }
 
 .markdown-body h1,
