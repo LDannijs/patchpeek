@@ -13,6 +13,12 @@ app.set("views", path.resolve("./patchpeek/views"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.resolve("./patchpeek/public")));
 
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.set("Expires", "0");
+  next();
+});
+
 let config = { repos: [], daysWindow: 31, githubToken: "" };
 
 let cachedDataMap = new Map();
