@@ -21,7 +21,6 @@ let config = { repos: [], daysWindow: 31, githubToken: "" };
 const markdownRenderer = new MarkdownIt({
   html: true,
   linkify: true,
-  breaks: false,
 });
 markdownRenderer.use(emoji);
 markdownRenderer.use(markdownItGitHubAlerts);
@@ -307,7 +306,6 @@ app.post("/remove-repo", async (req, res) => {
   cachedDataMap.delete(repo);
 
   await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
-  await buildIndexHtml();
 
   res.redirect("/");
 });
