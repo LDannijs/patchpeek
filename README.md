@@ -22,7 +22,7 @@ This is very much a passion project from someone without a ton of knowledge on t
 
 ## IMPORTANT INFO
 
-- The app renders the HTML in the background, not on page load. This is to avoid images not showing up cause of the URL expiring. Considering release markdown doesn't need second-accurate info, this is an acceptable tradeoff.
+- The app uses it's own markdown renderer. This means not every feature from using github's own renderer is available (like redirects for everything.) This was made in order to not make images expire without convoluted workarounds.
 
 - This app is intended for a pull window of 31 days (My personal interval of updating containers). While it does work if you enter 365 days (for example), be aware of heavy GitHub API usage and longer load times. I am not condoning usage this far back, as I have not tested the rigidity of it.
 
