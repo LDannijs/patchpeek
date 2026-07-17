@@ -217,25 +217,21 @@ function compareRepoSlugs(a, b) {
   return a.localeCompare(b, undefined, { sensitivity: "base" });
 }
 
-function buildIndexModel(errors = null) {
+function renderIndex(res, errors = null) {
   const allReleases = [...cachedDataMap.values()].sort((a, b) => {
     if (b.releaseCount !== a.releaseCount)
       return b.releaseCount - a.releaseCount;
     return a.repo.localeCompare(b.repo);
   });
 
-  return {
+  return res.render("index", {
     allReleases,
     daysWindow: config.daysWindow,
     repoList: [...config.repos].sort(compareRepoSlugs),
     errorMessage: Array.isArray(errors) ? errors : errors ? [errors] : null,
     rateLimited,
     lastUpdateTime,
-  };
-}
-
-function renderIndex(res, errors = null) {
-  return res.render("index", buildIndexModel(errors));
+  });
 }
 
 function normalizeRepoSlug(input) {
@@ -264,7 +260,7 @@ app.post("/refresh", async (req, res) => {
   }
 });
 
-app.get("/debug", (req, res) => res.json(buildIndexModel().allReleases));
+app.get("/debug", (req, res) => res.json([...cachedDataMap.values()]));
 
 app.post("/add-repo", async (req, res) => {
   const repo = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
