@@ -2,6 +2,9 @@ import express from "express";
 import path from "path";
 import fs from "fs/promises";
 import pLimit from "p-limit";
+import MarkdownIt from "markdown-it";
+import { full as emoji } from "markdown-it-emoji";
+import markdownItGitHubAlerts from "markdown-it-github-alerts";
 
 const app = express();
 const port = 3000;
@@ -13,16 +16,16 @@ app.set("views", path.resolve("./patchpeek/views"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.resolve("./patchpeek/public")));
 
-app.use((req, res, next) => {
-  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.set("Expires", "0");
-  next();
-});
-
 let config = { repos: [], daysWindow: 31, githubToken: "" };
 
+const markdownRenderer = new MarkdownIt({
+  html: true,
+  linkify: true,
+});
+markdownRenderer.use(emoji);
+markdownRenderer.use(markdownItGitHubAlerts);
+
 let cachedDataMap = new Map();
-let indexSnapshotHtml = null;
 let lastUpdateTime = null;
 let rateLimited = false;
 let refreshing = false;
@@ -56,6 +59,24 @@ function cutoffDate(days) {
   return cutoff;
 }
 
+function shortenGithubReferences(markdown, repo) {
+  const withUrls = markdown.replace(
+    /(https?:\/\/github\.com\/([^\s)]+)\/(issues|pull)\/(\d+))/gi,
+    (_match, url, _repoSlug, _type, number) => `[${`#${number}`}](${url})`,
+  );
+
+  return withUrls.replace(
+    /(^|[^a-zA-Z0-9_\[\]])(#[0-9]+)(?![a-zA-Z0-9_])/g,
+    (match, prefix, reference) => {
+      const number = reference.slice(1);
+      const target = repo
+        ? `https://github.com/${repo}/pull/${number}`
+        : `https://github.com/pull/${number}`;
+      return `${prefix}[${reference}](${target})`;
+    },
+  );
+}
+
 async function fetchReleasePage(repo, page) {
   const baseDelay = 5000;
 
@@ -65,7 +86,7 @@ async function fetchReleasePage(repo, page) {
         `https://api.github.com/repos/${repo}/releases?per_page=30&page=${page}`,
         {
           headers: {
-            Accept: "application/vnd.github.html+json",
+            Accept: "application/vnd.github+json",
             ...(config.githubToken && {
               Authorization: `token ${config.githubToken}`,
             }),
@@ -122,10 +143,13 @@ async function fetchReleases(repo, daysWindow = config.daysWindow) {
 
       if (new Date(release.published_at) < cutoff) return allReleases;
 
-      const body = (release.body_html || "").toLowerCase();
+      const bodyMarkdown = shortenGithubReferences(release.body || "", repo);
+      const bodyHtml = markdownRenderer.render(bodyMarkdown);
+      const body = bodyMarkdown.toLowerCase();
 
       allReleases.push({
         ...release,
+        body_html: bodyHtml,
         flagged: keywords.some((kw) => body.includes(kw)),
       });
     }
@@ -178,15 +202,6 @@ async function refreshReleases(repos = config.repos) {
     `Refreshed ${successfulCount}/${repos.length} repos. Remaining tokens: ${lastRateRemaining ?? "unknown"}/${lastRateLimit ?? "unknown"}`,
   );
 
-  // Invalidate cached HTML before rebuilding it.
-  indexSnapshotHtml = null;
-
-  try {
-    await buildIndexHtml(errors);
-  } catch (err) {
-    console.error("Failed to build index HTML:", err);
-  }
-
   return errors;
 }
 
@@ -202,33 +217,20 @@ function compareRepoSlugs(a, b) {
   return a.localeCompare(b, undefined, { sensitivity: "base" });
 }
 
-function buildIndexModel(errors = null) {
+function renderIndex(res, errors = null) {
   const allReleases = [...cachedDataMap.values()].sort((a, b) => {
     if (b.releaseCount !== a.releaseCount)
       return b.releaseCount - a.releaseCount;
     return a.repo.localeCompare(b.repo);
   });
 
-  return {
+  return res.render("index", {
     allReleases,
     daysWindow: config.daysWindow,
     repoList: [...config.repos].sort(compareRepoSlugs),
     errorMessage: Array.isArray(errors) ? errors : errors ? [errors] : null,
     rateLimited,
     lastUpdateTime,
-  };
-}
-
-function renderIndex(res, errors = null) {
-  return res.render("index", buildIndexModel(errors));
-}
-
-async function buildIndexHtml(errors = null) {
-  indexSnapshotHtml = await new Promise((resolve, reject) => {
-    app.render("index", buildIndexModel(errors), (err, html) => {
-      if (err) return reject(err);
-      resolve(html);
-    });
   });
 }
 
@@ -240,7 +242,6 @@ function normalizeRepoSlug(input) {
 }
 
 app.get("/", (req, res) => {
-  if (indexSnapshotHtml) return res.send(indexSnapshotHtml);
   return renderIndex(res);
 });
 
@@ -259,7 +260,7 @@ app.post("/refresh", async (req, res) => {
   }
 });
 
-app.get("/debug", (req, res) => res.json(buildIndexModel().allReleases));
+app.get("/debug", (req, res) => res.json([...cachedDataMap.values()]));
 
 app.post("/add-repo", async (req, res) => {
   const repo = normalizeRepoSlug(req.body.repoSlug.toLowerCase());
@@ -284,7 +285,6 @@ app.post("/add-repo", async (req, res) => {
     if (refreshErrors.length) {
       config.repos = config.repos.filter((r) => r !== repo);
       cachedDataMap.delete(repo);
-      indexSnapshotHtml = null;
 
       await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
       return renderIndex(res, refreshErrors);
@@ -302,7 +302,6 @@ app.post("/remove-repo", async (req, res) => {
   cachedDataMap.delete(repo);
 
   await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
-  await buildIndexHtml();
 
   res.redirect("/");
 });

@@ -91,7 +91,18 @@
                     </a>
                   </summary>
                   <div class="markdown-body">
-                    <%- release.body_html %>
+                    <%- release.body_html.replace(/<pre><code class="language-diff">([\s\S]*?)<\/code><\/pre>/g, (_, code) => {
+                      const lines = code
+                        .split(/\n/)
+                        .map((line) => line.replace(/\r$/, ""))
+                        .filter((line) => line !== "");
+                      const rendered = lines.map((line) => {
+                        if (line.startsWith("+")) return `<span class="diff-add">${line}</span>`;
+                        if (line.startsWith("-")) return `<span class="diff-remove">${line}</span>`;
+                        return `<span class="diff-neutral">${line}</span>`;
+                      }).join("\n");
+                      return `<pre><code class="language-diff">${rendered}</code></pre>`;
+                    }) %>
                   </div>
                 </details>
               <% }) %>
