@@ -16,7 +16,6 @@
       <h1 class="title"><img class="logo" src="/favicon.svg"> PatchPeek</h1>
       <p class="lastUpdated">
         Last updated: <span id="lastUpdatedTime" data-timestamp="<%= lastUpdateTime %>"></span>
-        <button type="button" id="timeFormatToggle" class="timeFormatToggle" title="Toggle 12h/24h time format"></button>
       </p>
       <form method="POST" action="/refresh" class="refreshForm">
         <button class="refreshButton" type="submit">
@@ -28,6 +27,11 @@
           <p class="settingsTitle" >Settings</p>
         </summary>
         <div class="settingsContent">
+          <form method="POST" action="/update-days">
+            <label for="timeFormatToggle">Time format:</label>
+            <button type="button" id="timeFormatToggle" class="timeFormatToggle" title="Toggle 12h/24h time format"></button>
+          </form>
+          <hr>
           <form method="POST" action="/update-days">
             <label for="daysWindow">Show releases from the last</label>
             <input
@@ -161,17 +165,16 @@
     );
 
     const timeEl = document.getElementById('lastUpdatedTime');
-    const toggleButton = document.getElementById('timeFormatToggle');
 
     function renderLastUpdated() {
       const use12h = localStorage.getItem('timeFormat') !== '24';
       timeEl.textContent = timeEl.dataset.timestamp
         ? new Date(timeEl.dataset.timestamp).toLocaleString(undefined, { hour12: use12h })
         : 'never';
-      toggleButton.textContent = use12h ? '24h' : '12h';
+      document.getElementById('timeFormatToggle').textContent = use12h ? '12h' : '24h';
     }
 
-    toggleButton.addEventListener('click', () => {
+    document.getElementById('timeFormatToggle').addEventListener('click', () => {
       localStorage.setItem('timeFormat', localStorage.getItem('timeFormat') !== '24' ? '24' : '12');
       renderLastUpdated();
     });
