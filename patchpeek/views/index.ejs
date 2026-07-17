@@ -14,7 +14,9 @@
   <body>
     <div class="header">
       <h1 class="title"><img class="logo" src="/favicon.svg"> PatchPeek</h1>
-      <p class="lastUpdated">Last updated: <%= lastUpdateTime %></p>
+      <p class="lastUpdated">
+        Last updated: <span id="lastUpdatedTime" data-timestamp="<%= lastUpdateTime %>"></span>
+      </p>
       <form method="POST" action="/refresh" class="refreshForm">
         <button class="refreshButton" type="submit">
           Refresh
@@ -25,6 +27,11 @@
           <p class="settingsTitle" >Settings</p>
         </summary>
         <div class="settingsContent">
+          <form method="POST" action="/update-days">
+            <label for="timeFormatToggle">Time format:</label>
+            <button type="button" id="timeFormatToggle" class="timeFormatToggle" title="Toggle 12h/24h time format"></button>
+          </form>
+          <hr>
           <form method="POST" action="/update-days">
             <label for="daysWindow">Show releases from the last</label>
             <input
@@ -151,15 +158,27 @@
     </div>
   </body>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const loadingOverlay = document.getElementById('loadingOverlay');
-      const forms = document.querySelectorAll('form');
+    document.querySelectorAll('form').forEach((form) =>
+      form.addEventListener('submit', () => {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+      }),
+    );
 
-      forms.forEach(form => {
-        form.addEventListener('submit', () => {
-          loadingOverlay.style.display = 'flex';
-        });
-      });
+    const timeEl = document.getElementById('lastUpdatedTime');
+
+    function renderLastUpdated() {
+      const use12h = localStorage.getItem('timeFormat') !== '24';
+      timeEl.textContent = timeEl.dataset.timestamp
+        ? new Date(timeEl.dataset.timestamp).toLocaleString(undefined, { hour12: use12h })
+        : 'never';
+      document.getElementById('timeFormatToggle').textContent = use12h ? '12h' : '24h';
+    }
+
+    document.getElementById('timeFormatToggle').addEventListener('click', () => {
+      localStorage.setItem('timeFormat', localStorage.getItem('timeFormat') !== '24' ? '24' : '12');
+      renderLastUpdated();
     });
+
+    renderLastUpdated();
   </script>
 </html>

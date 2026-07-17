@@ -180,6 +180,21 @@ h2 {
   margin-bottom: auto;
 }
 
+.timeFormatToggle {
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #707070;
+  padding: 4px 10px;
+  color: #ffffff;
+  background: #232323;
+  user-select: none;
+}
+
+.timeFormatToggle:hover {
+  background: #505050;
+}
+
 .title {
   display: flex;
   gap: 12px;

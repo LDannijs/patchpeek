@@ -196,7 +196,7 @@ async function refreshReleases(repos = config.repos) {
     ),
   );
 
-  lastUpdateTime = new Date().toLocaleString();
+  lastUpdateTime = new Date().toISOString();
 
   console.log(
     `Refreshed ${successfulCount}/${repos.length} repos. Remaining tokens: ${lastRateRemaining ?? "unknown"}/${lastRateLimit ?? "unknown"}`,
