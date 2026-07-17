@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import path from "path";
 import fs from "fs/promises";
 import pLimit from "p-limit";
@@ -13,6 +14,7 @@ const limit = pLimit(5);
 
 app.set("view engine", "ejs");
 app.set("views", path.resolve("./patchpeek/views"));
+app.use(compression());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.resolve("./patchpeek/public")));
 
