@@ -62,14 +62,22 @@ function cutoffDate(days) {
 }
 
 function shortenGithubReferences(markdown, repo) {
+  const GHUrlPattern =
+    /https?:\/\/github\.com\/([^\s)]+)\/(issues|pull)\/(\d+)/gi;
+
   const withUrls = markdown.replace(
-    /(https?:\/\/github\.com\/([^\s)]+)\/(issues|pull)\/(\d+))/gi,
-    (_match, url, _repoSlug, _type, number) => `[${`#${number}`}](${url})`,
+    GHUrlPattern,
+    (url, _repoSlug, _type, number, offset, source) => {
+      // Skip URLs already used as markdown link targets: ](https://...)
+      if (source.slice(Math.max(0, offset - 2), offset) === "](") return url;
+      const reference = `#${number}`;
+      return `[${reference}](${url})`;
+    },
   );
 
   return withUrls.replace(
     /(^|[^a-zA-Z0-9_\[\]])(#[0-9]+)(?![a-zA-Z0-9_])/g,
-    (match, prefix, reference) => {
+    (_match, prefix, reference) => {
       const number = reference.slice(1);
       const target = repo
         ? `https://github.com/${repo}/pull/${number}`
