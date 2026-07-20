@@ -368,7 +368,7 @@ summary.flagged {
 
 details.release {
   background: #0a0a0a;
-  margin-bottom: 1rem;
+  margin-bottom: 10px;
 }
 
 a.releaseName {
