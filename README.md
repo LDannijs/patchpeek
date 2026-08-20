@@ -2,31 +2,26 @@
 
 # PatchPeek
 
-PatchPeek fetches the changelog of releases on GitHub, while checking for any potential breaking changes and displays it into a clean interface.
+PatchPeek fetches the changelogs of releases on GitHub, while checking for any potential breaking changes and displays it all on a clean interface.
 
 ---
 
 ![](screenshot.png)
 
-## PSA
-
-This is very much a passion project from someone without a ton of knowledge on this subject that wanted to learn by doing, so mistakes will very likely have been made and will be made. Besides that, this is a small side hobby, so I don't have a ton of time to work on it and fix stuff. I hope you can understand!
-
 ## Features
 
 - Minimalistic interface
 - Minimal usage of GitHub API tokens
+  - Releases are pulled once an hour, so a token is not needed, but is recommended
 - Changelogs with breaking changes are highlighted with red
 - Add repos by GitHub URL or only the author/repo slug
 - Change the amount of days to look back for releases
 
-## IMPORTANT INFO
+## Important info
 
-- The app uses it's own markdown renderer. This means not every feature from using github's own renderer is available (like redirects for everything.) This was made in order to not make images expire without convoluted workarounds.
+- The app uses it's own markdown renderer. This means not every feature from using GitHub's own renderer is available (like redirects for everything). This decision was made in order to not deal with images expiring without convoluted workarounds.
 
-- This app is intended for a pull window of 31 days (My personal interval of updating containers). While it does work if you enter 365 days (for example), be aware of heavy GitHub API usage and longer load times. I am not condoning usage this far back, as I have not tested the rigidity of it.
-
-- The app pulls releases from the GitHub API every 1 hour, which should provide enough requests for your needs without a GitHub token (but it is recommended to add one).
+- The app's default pull window is 31 days (my personal interval of updating containers). While it does function if you enter for example 365 days, be aware of heavy GitHub API usage and longer load times. I am not condoning usage this far back, as I have not tested the rigidity of it.
 
 ## Docker Compose
 
@@ -46,14 +41,14 @@ services:
     # user: "1000:1000"
 ```
 
-> [!IMPORTANT]
+> [!NOTE]
 > To run the container as rootless, uncomment the line as seen in the compose file, and then make sure you run:
 >
 > ```bash
 > sudo chown -R 1000:1000 ./data
 > ```
 
-- Then run:
+- Then start the container with:
 
 ```
 docker compose up -d
@@ -69,7 +64,7 @@ Github token creation can be found here: https://github.com/settings/personal-ac
 - Clone the repo
 - In the terminal, run:
 
-```
+```bash
 npm install
 npm run dev
 ```
@@ -78,4 +73,4 @@ npm run dev
 
 This project came to fruition from me wanting to quickly know if any updates I were to do to my docker containers would break anything. I have used RSS feeds, discord notifications, etc. but they all felt too cumbersome to quickly give me the information i need at a glance.
 
-Besides that I wanted to push myself to make a project like this and see how far i could get, alongside learn some stuff from it :)
+Besides that I wanted to push myself to make a project like this and see how far i could get, alongside learn some stuff from it. Besides that, this is a small side hobby, so I don't have a ton of time to work on it and fix stuff. I hope you can understand! :)
