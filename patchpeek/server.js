@@ -87,7 +87,7 @@ function shortenGithubReferences(markdown, repo) {
   );
 }
 
-async function githubFetch(path, logType, logDetails) {
+async function githubFetch(path) {
   const res = await fetch(`https://api.github.com${path}`, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -117,8 +117,6 @@ async function fetchReleasePage(repo, page) {
     try {
       const res = await githubFetch(
         `/repos/${repo}/releases?per_page=30&page=${page}`,
-        "releases",
-        `${repo} page=${page}`,
       );
 
       if (res.status === 403 && rateLimited) return [];
@@ -266,24 +264,22 @@ function normalizeRepoSlug(input) {
 
 app.get("/api/repos/search", async (req, res) => {
   const query = String(req.query.q || "").trim();
-
-  if (query.length < 2) return res.json({ items: [] });
+  if (query.length < 3) return res.json({ items: [] });
 
   try {
     const githubResponse = await githubFetch(
       `/search/repositories?q=${encodeURIComponent(query)}&per_page=8&sort=stars&order=desc`,
-      "repository-search",
-      `query=${query}`,
     );
 
     if (!githubResponse.ok) {
-      return res.status(githubResponse.status === 403 ? 429 : 502).json({
-        error: "GitHub repository search is unavailable right now.",
-      });
+      return res
+        .status(githubResponse.status === 403 && rateLimited ? 429 : 502)
+        .json({
+          error: "GitHub repository search is unavailable right now.",
+        });
     }
 
     const { items = [] } = await githubResponse.json();
-
     if (!items.length) return res.send("");
 
     return res.render("partials/repo-search-results", {
@@ -296,9 +292,9 @@ app.get("/api/repos/search", async (req, res) => {
     });
   } catch (err) {
     console.error(`Repository search failed: ${err.message}`);
-    return res.status(502).json({
-      error: "Unable to search GitHub right now.",
-    });
+    return res
+      .status(502)
+      .json({ error: "Could not connect to GitHub right now." });
   }
 });
 

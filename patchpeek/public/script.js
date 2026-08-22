@@ -44,7 +44,7 @@ repoInput.addEventListener("input", () => {
   repoSearchResults.innerHTML = "";
   repoSearchStatus.textContent = "";
 
-  if (query.length < 2) return;
+  if (query.length < 3) return res.send("");
 
   repoSearchStatus.textContent = "Searching GitHub...";
 
