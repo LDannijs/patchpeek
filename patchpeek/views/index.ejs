@@ -114,7 +114,7 @@
       <div class="sidebar">
         <h2 id="repositories">Repositories</h2>
         <form method="POST" action="/add-repo" class="addrepo">
-          <label for="repoSlug">Enter GitHub repository:</label>
+          <label for="repoSlug">Enter or search a GitHub repository:</label>
           <input
             id="repoSlug"
             name="repoSlug"
@@ -123,6 +123,8 @@
             required
           />
         </form>
+        <a id="repoSearchStatus" class="repoSearchStatus" aria-live="polite"></a>
+        <ul id="repoSearchResults" class="repoSearchResults" aria-label="GitHub repository results"></ul>
         <hr>
         <ul class="reposlist">
           <% if (repoList.length) { %>
@@ -154,28 +156,5 @@
       <div class="spinner"></div>
     </div>
   </body>
-  <script>
-    document.querySelectorAll('form').forEach((form) =>
-      form.addEventListener('submit', () => {
-        document.getElementById('loadingOverlay').style.display = 'flex';
-      }),
-    );
-
-    const timeEl = document.getElementById('lastUpdatedTime');
-
-    function renderLastUpdated() {
-      const use12h = localStorage.getItem('timeFormat') !== '24';
-      timeEl.textContent = timeEl.dataset.timestamp
-        ? new Date(timeEl.dataset.timestamp).toLocaleString(undefined, { hour12: use12h })
-        : 'never';
-      document.getElementById('timeFormatToggle').textContent = use12h ? '12h' : '24h';
-    }
-
-    document.getElementById('timeFormatToggle').addEventListener('click', () => {
-      localStorage.setItem('timeFormat', localStorage.getItem('timeFormat') !== '24' ? '24' : '12');
-      renderLastUpdated();
-    });
-
-    renderLastUpdated();
-  </script>
+  <script src="/script.js" defer></script>
 </html>

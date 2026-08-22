@@ -69,7 +69,7 @@ h2 {
 }
 
 .content {
-  flex: 4;
+  flex: 3;
   min-width: 320px;
 }
 
@@ -166,6 +166,7 @@ h2 {
   border-radius: 15px;
   margin-bottom: 20px;
   min-width: 290px;
+  align-items: center;
 }
 
 .logo {
@@ -224,6 +225,7 @@ h2 {
   position: relative;
   margin-left: 10px;
   margin-bottom: auto;
+  margin-top: auto;
   background: #232323;
 }
 
@@ -432,6 +434,66 @@ input[type="number"] {
 #repoSlug,
 #githubToken {
   width: stretch;
+}
+
+.repoSearchStatus {
+  min-height: 1.25rem;
+  padding-top: 6px;
+  color: #bdbdbd;
+  font-size: 0.9rem;
+}
+
+.repoSearchResults {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-color: #ffffff var(--cards-color);
+}
+
+.repoSearchResult {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repoSearchResult:hover,
+.repoSearchResult:focus-visible {
+  background: #505050;
+  outline: none;
+}
+
+.repoSearchResult img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.repoSearchResult span {
+  min-width: 0;
+}
+
+.repoSearchResult strong,
+.repoSearchResult small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repoSearchResult small {
+  margin-top: 2px;
+  color: #bdbdbd;
 }
 
 .dayswindow {
