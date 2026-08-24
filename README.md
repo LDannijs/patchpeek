@@ -15,6 +15,7 @@ PatchPeek fetches the changelogs of releases on GitHub, while checking for any p
   - Releases are pulled once an hour, so a token is not needed, but is recommended
 - Changelogs with breaking changes are highlighted with red
 - Add repos by GitHub URL or only the author/repo slug
+- Search GitHub repositories live while entering a repository name
 - Change the amount of days to look back for releases
 
 ## Important info

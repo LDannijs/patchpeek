@@ -1,0 +1,11 @@
+<% items.forEach((repo) => { %>
+  <li>
+    <button type="button" class="repoSearchResult" data-repo="<%= repo.fullName %>">
+      <img src="<%= repo.avatarUrl %>" alt="" />
+      <span>
+        <strong><%= repo.fullName %></strong>
+        <small><%= repo.description || "No description" %> - <%= repo.stars.toLocaleString() %> stars</small>
+      </span>
+    </button>
+  </li>
+<% }) %>

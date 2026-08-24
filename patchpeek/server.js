@@ -87,33 +87,39 @@ function shortenGithubReferences(markdown, repo) {
   );
 }
 
+async function githubFetch(path) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      ...(config.githubToken && {
+        Authorization: `token ${config.githubToken}`,
+      }),
+    },
+  });
+
+  const rateRemaining = res.headers.get("x-ratelimit-remaining");
+  const rateLimit = res.headers.get("x-ratelimit-limit");
+
+  if (rateRemaining !== null) lastRateRemaining = rateRemaining;
+  if (rateLimit !== null) lastRateLimit = rateLimit;
+
+  if (res.status === 403 && rateRemaining === "0") {
+    rateLimited = true;
+  }
+
+  return res;
+}
+
 async function fetchReleasePage(repo, page) {
   const baseDelay = 5000;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const res = await fetch(
-        `https://api.github.com/repos/${repo}/releases?per_page=30&page=${page}`,
-        {
-          headers: {
-            Accept: "application/vnd.github+json",
-            ...(config.githubToken && {
-              Authorization: `token ${config.githubToken}`,
-            }),
-          },
-        },
+      const res = await githubFetch(
+        `/repos/${repo}/releases?per_page=30&page=${page}`,
       );
 
-      const rateRemaining = res.headers.get("x-ratelimit-remaining");
-      const rateLimit = res.headers.get("x-ratelimit-limit");
-
-      if (rateRemaining !== null) lastRateRemaining = rateRemaining;
-      if (rateLimit !== null) lastRateLimit = rateLimit;
-
-      if (res.status === 403 && rateRemaining === "0") {
-        rateLimited = true;
-        return [];
-      }
+      if (res.status === 403 && rateLimited) return [];
 
       if (res.status === 404) {
         const err = new Error("Repository not found or private");
@@ -121,20 +127,25 @@ async function fetchReleasePage(repo, page) {
         throw err;
       }
 
-      if ([502, 503, 504].includes(res.status))
+      if ([502, 503, 504].includes(res.status)) {
         throw new Error(`Temporary upstream error ${res.status}`);
+      }
 
-      if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`GitHub API error: ${res.status}`);
+      }
 
       return await res.json();
     } catch (err) {
       if (err.nonRetryable || attempt === 3) throw err;
 
       const delay = baseDelay * 2 ** (attempt - 1);
+
       console.log(
         `Attempt ${attempt} failed for ${repo}: ${err.message}, retrying in ${delay / 1000}s...`,
       );
-      await new Promise((r) => setTimeout(r, delay));
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 }
@@ -250,6 +261,42 @@ function normalizeRepoSlug(input) {
     .match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/?#]+)/);
   return match ? `${match[1]}/${match[2]}` : input.trim();
 }
+
+app.get("/api/repos/search", async (req, res) => {
+  const query = String(req.query.q || "").trim();
+  if (query.length < 3) return res.json({ items: [] });
+
+  try {
+    const githubResponse = await githubFetch(
+      `/search/repositories?q=${encodeURIComponent(query)}&per_page=8&sort=stars&order=desc`,
+    );
+
+    if (!githubResponse.ok) {
+      return res
+        .status(githubResponse.status === 403 && rateLimited ? 429 : 502)
+        .json({
+          error: "GitHub repository search is unavailable right now.",
+        });
+    }
+
+    const { items = [] } = await githubResponse.json();
+    if (!items.length) return res.send("");
+
+    return res.render("partials/repo-search-results", {
+      items: items.map((repo) => ({
+        fullName: repo.full_name,
+        description: repo.description,
+        stars: repo.stargazers_count,
+        avatarUrl: repo.owner.avatar_url,
+      })),
+    });
+  } catch (err) {
+    console.error(`Repository search failed: ${err.message}`);
+    return res
+      .status(502)
+      .json({ error: "Could not connect to GitHub right now." });
+  }
+});
 
 app.get("/", (req, res) => {
   return renderIndex(res);

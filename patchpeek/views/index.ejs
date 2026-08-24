@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>PatchPeek</title>
     <link rel="icon" href="/favicon.svg" type="image/x-icon" />
-    <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/github-markdown.css" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="header">
@@ -113,16 +113,20 @@
       </div>
       <div class="sidebar">
         <h2 id="repositories">Repositories</h2>
+        <label for="repoSlug">Enter or search a GitHub repository:</label>
         <form method="POST" action="/add-repo" class="addrepo">
-          <label for="repoSlug">Enter GitHub repository:</label>
           <input
             id="repoSlug"
             name="repoSlug"
             type="text"
-            placeholder="github.com/... OR user/repo"
+            title="Either enter a GitHub repository to search for it, enter the repo's URL or enter the 'user/repo' slug"
+            placeholder="Type here / URL / user/repo"
             required
           />
+          <input type="reset" class="resetRepoInput" value="✖"/>
         </form>
+        <a id="repoSearchStatus" class="repoSearchStatus" aria-live="polite"></a>
+        <ul id="repoSearchResults" class="repoSearchResults" aria-label="GitHub repository results"></ul>
         <hr>
         <ul class="reposlist">
           <% if (repoList.length) { %>
@@ -154,28 +158,5 @@
       <div class="spinner"></div>
     </div>
   </body>
-  <script>
-    document.querySelectorAll('form').forEach((form) =>
-      form.addEventListener('submit', () => {
-        document.getElementById('loadingOverlay').style.display = 'flex';
-      }),
-    );
-
-    const timeEl = document.getElementById('lastUpdatedTime');
-
-    function renderLastUpdated() {
-      const use12h = localStorage.getItem('timeFormat') !== '24';
-      timeEl.textContent = timeEl.dataset.timestamp
-        ? new Date(timeEl.dataset.timestamp).toLocaleString(undefined, { hour12: use12h })
-        : 'never';
-      document.getElementById('timeFormatToggle').textContent = use12h ? '12h' : '24h';
-    }
-
-    document.getElementById('timeFormatToggle').addEventListener('click', () => {
-      localStorage.setItem('timeFormat', localStorage.getItem('timeFormat') !== '24' ? '24' : '12');
-      renderLastUpdated();
-    });
-
-    renderLastUpdated();
-  </script>
+  <script src="/script.js" defer></script>
 </html>

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 :root {
   --cards-color: #353535;
@@ -10,8 +10,8 @@ html {
 
 body {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Nunito Sans", "Segoe UI", Helvetica,
-    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    "Inter", system-ui, "Segoe UI", Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
   padding: 15px 250px 30px;
   margin: 0;
   background: #222222;
@@ -60,6 +60,7 @@ h2 {
   margin: 0;
   color: #ffffff;
   line-height: 0.75;
+  margin-bottom: 20px;
 }
 
 .layout {
@@ -69,7 +70,7 @@ h2 {
 }
 
 .content {
-  flex: 4;
+  flex: 3;
   min-width: 320px;
 }
 
@@ -161,11 +162,14 @@ h2 {
 .header {
   display: flex;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
   padding: 10px 15px;
   background: var(--cards-color);
   border-radius: 15px;
   margin-bottom: 20px;
   min-width: 290px;
+  align-items: center;
 }
 
 .logo {
@@ -201,12 +205,16 @@ h2 {
   font-size: 1.8em;
   margin: 0;
   text-wrap: nowrap;
+  align-items: center;
 }
 
 .refreshButton {
   cursor: pointer;
+  height: 38px;
+  width: 100px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1;
   border-radius: 15px;
   border: 1px solid #707070;
   padding: 10px 15px;
@@ -224,12 +232,16 @@ h2 {
   position: relative;
   margin-left: 10px;
   margin-bottom: auto;
+  margin-top: auto;
   background: #232323;
 }
 
 .settingsSummary {
   padding: 8px 15px;
   border: 1px solid #707070;
+  height: 38px;
+  width: 100px;
+  justify-content: center;
 }
 
 .settingsSummary:hover {
@@ -237,14 +249,15 @@ h2 {
 }
 
 .settingsTitle {
-  font-size: 16px;
+  font-size: 17px;
   margin: 0;
 }
 
 .settingsContent {
   margin-top: 10px;
   position: absolute;
-  width: 300px;
+  z-index: 1;
+  width: max-content;
   margin: auto;
   top: 55px;
   right: 0;
@@ -267,6 +280,12 @@ h2 {
   border-bottom: 15px solid black;
 }
 
+.dayswindow {
+  width: 28px;
+  padding: 0.2rem;
+  margin: 0 0.3rem;
+}
+
 /* === CONTENT SECTION === */
 
 .diff-add {
@@ -280,7 +299,7 @@ h2 {
 }
 
 details {
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
   background: var(--cards-color);
   border-radius: 15px;
   color: #ffffff;
@@ -340,13 +359,15 @@ summary::-webkit-details-marker {
 }
 
 .releaseCount {
+  position: relative;
   width: 7em;
   display: flex;
   color: #bdd9fd;
+  right: 20px;
   margin-left: auto;
   margin-top: 0;
   margin-bottom: 0;
-  justify-content: center;
+  justify-content: flex-end;
   line-height: 1;
   font-size: 20px;
 }
@@ -406,12 +427,15 @@ a.releaseName:hover {
 /* === SIDEBAR SECTION === */
 
 .addrepo {
-  padding: 25px 0 5px;
+  display: flex;
+  position: relative;
+  width: 100%;
+  padding: 10px 0 5px;
+  align-items: center;
 }
 
 label {
   display: inline-block;
-  margin-bottom: 10px;
   color: #ffffff;
 }
 
@@ -429,15 +453,92 @@ input[type="number"] {
   color: #e0e0e0;
 }
 
-#repoSlug,
+#repoSlug {
+  width: 100%;
+}
+
 #githubToken {
   width: stretch;
 }
 
-.dayswindow {
+.resetRepoInput {
+  position: absolute;
+  right: 3px;
   width: 30px;
-  padding: 0.2rem;
-  margin: 0 0.3rem;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: #bdbdbd;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.resetRepoInput:hover,
+.resetRepoInput:focus-visible {
+  color: #ffffff;
+}
+
+.repoSearchStatus {
+  min-height: 1.25rem;
+  padding-top: 6px;
+  color: #bdbdbd;
+  font-size: 0.9rem;
+}
+
+.repoSearchResults {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  scrollbar-color: #ffffff var(--cards-color);
+  scrollbar-width: thin;
+}
+
+.repoSearchResult {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  margin: 5px 0;
+  border: 0;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repoSearchResult:hover,
+.repoSearchResult:focus-visible {
+  background: #505050;
+}
+
+.repoSearchResult img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.repoSearchResult span {
+  min-width: 0;
+}
+
+.repoSearchResult strong,
+.repoSearchResult small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repoSearchResult small {
+  margin-top: 2px;
+  color: #bdbdbd;
 }
 
 input::-webkit-outer-spin-button,
@@ -458,6 +559,7 @@ input::-webkit-inner-spin-button {
   padding: 5px 0;
   font-size: large;
   color: #ffffff;
+  height: 25px;
 }
 
 .repocheck {
@@ -469,6 +571,10 @@ input::-webkit-inner-spin-button {
 }
 
 .repotext {
+  width: 300px;
   margin: 0;
   padding-left: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
