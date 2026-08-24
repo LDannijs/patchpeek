@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 :root {
   --cards-color: #353535;
@@ -10,8 +10,8 @@ html {
 
 body {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Nunito Sans", "Segoe UI", Helvetica,
-    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    "Inter", system-ui, "Segoe UI", Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
   padding: 15px 250px 30px;
   margin: 0;
   background: #222222;
@@ -207,8 +207,11 @@ h2 {
 
 .refreshButton {
   cursor: pointer;
+  height: 38px;
+  width: 100px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1;
   border-radius: 15px;
   border: 1px solid #707070;
   padding: 10px 15px;
@@ -233,6 +236,9 @@ h2 {
 .settingsSummary {
   padding: 8px 15px;
   border: 1px solid #707070;
+  height: 38px;
+  width: 100px;
+  justify-content: center;
 }
 
 .settingsSummary:hover {
@@ -240,7 +246,7 @@ h2 {
 }
 
 .settingsTitle {
-  font-size: 16px;
+  font-size: 17px;
   margin: 0;
 }
 
@@ -343,13 +349,15 @@ summary::-webkit-details-marker {
 }
 
 .releaseCount {
+  position: relative;
   width: 7em;
   display: flex;
   color: #bdd9fd;
+  right: 20px;
   margin-left: auto;
   margin-top: 0;
   margin-bottom: 0;
-  justify-content: center;
+  justify-content: flex-end;
   line-height: 1;
   font-size: 20px;
 }
