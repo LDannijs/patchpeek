@@ -162,6 +162,8 @@ h2 {
 .header {
   display: flex;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
   padding: 10px 15px;
   background: var(--cards-color);
   border-radius: 15px;
@@ -203,6 +205,7 @@ h2 {
   font-size: 1.8em;
   margin: 0;
   text-wrap: nowrap;
+  align-items: center;
 }
 
 .refreshButton {
@@ -253,7 +256,8 @@ h2 {
 .settingsContent {
   margin-top: 10px;
   position: absolute;
-  width: 300px;
+  z-index: 1;
+  width: max-content;
   margin: auto;
   top: 55px;
   right: 0;
@@ -276,6 +280,12 @@ h2 {
   border-bottom: 15px solid black;
 }
 
+.dayswindow {
+  width: 28px;
+  padding: 0.2rem;
+  margin: 0 0.3rem;
+}
+
 /* === CONTENT SECTION === */
 
 .diff-add {
@@ -289,7 +299,7 @@ h2 {
 }
 
 details {
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
   background: var(--cards-color);
   border-radius: 15px;
   color: #ffffff;
@@ -419,6 +429,7 @@ a.releaseName:hover {
 .addrepo {
   display: flex;
   position: relative;
+  width: 100%;
   padding: 10px 0 5px;
   align-items: center;
 }
@@ -442,7 +453,10 @@ input[type="number"] {
   color: #e0e0e0;
 }
 
-#repoSlug,
+#repoSlug {
+  width: 100%;
+}
+
 #githubToken {
   width: stretch;
 }
@@ -525,12 +539,6 @@ input[type="number"] {
 .repoSearchResult small {
   margin-top: 2px;
   color: #bdbdbd;
-}
-
-.dayswindow {
-  width: 30px;
-  padding: 0.2rem;
-  margin: 0 0.3rem;
 }
 
 input::-webkit-outer-spin-button,
