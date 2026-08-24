@@ -44,7 +44,7 @@ repoInput.addEventListener("input", () => {
   repoSearchResults.innerHTML = "";
   repoSearchStatus.textContent = "";
 
-  if (query.length < 3) return res.send("");
+  if (query.length < 3) return;
 
   repoSearchStatus.textContent = "Searching GitHub...";
 
@@ -74,6 +74,13 @@ repoInput.addEventListener("input", () => {
       }
     }
   }, 300);
+});
+
+repoInput.form.addEventListener("reset", () => {
+  clearTimeout(searchTimer);
+  searchController?.abort();
+  repoSearchResults.innerHTML = "";
+  repoSearchStatus.textContent = "";
 });
 
 repoSearchResults.addEventListener("click", (event) => {

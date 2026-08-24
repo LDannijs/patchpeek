@@ -60,6 +60,7 @@ h2 {
   margin: 0;
   color: #ffffff;
   line-height: 0.75;
+  margin-bottom: 20px;
 }
 
 .layout {
@@ -408,12 +409,14 @@ a.releaseName:hover {
 /* === SIDEBAR SECTION === */
 
 .addrepo {
-  padding: 25px 0 5px;
+  display: flex;
+  position: relative;
+  padding: 10px 0 5px;
+  align-items: center;
 }
 
 label {
   display: inline-block;
-  margin-bottom: 10px;
   color: #ffffff;
 }
 
@@ -436,6 +439,26 @@ input[type="number"] {
   width: stretch;
 }
 
+.resetRepoInput {
+  position: absolute;
+  right: 3px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: #bdbdbd;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.resetRepoInput:hover,
+.resetRepoInput:focus-visible {
+  color: #ffffff;
+}
+
 .repoSearchStatus {
   min-height: 1.25rem;
   padding-top: 6px;
@@ -447,7 +470,6 @@ input[type="number"] {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 320px;
   overflow-y: auto;
   scrollbar-color: #ffffff var(--cards-color);
   scrollbar-width: thin;
@@ -459,9 +481,10 @@ input[type="number"] {
   gap: 10px;
   width: 100%;
   padding: 8px;
+  margin: 5px 0;
   border: 0;
   border-radius: 8px;
-  background: transparent;
+  background: #2a2a2a;
   color: #ffffff;
   text-align: left;
   cursor: pointer;
@@ -470,7 +493,6 @@ input[type="number"] {
 .repoSearchResult:hover,
 .repoSearchResult:focus-visible {
   background: #505050;
-  outline: none;
 }
 
 .repoSearchResult img {
@@ -521,6 +543,7 @@ input::-webkit-inner-spin-button {
   padding: 5px 0;
   font-size: large;
   color: #ffffff;
+  height: 25px;
 }
 
 .repocheck {
@@ -532,6 +555,10 @@ input::-webkit-inner-spin-button {
 }
 
 .repotext {
+  width: 300px;
   margin: 0;
   padding-left: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

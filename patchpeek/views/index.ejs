@@ -113,8 +113,8 @@
       </div>
       <div class="sidebar">
         <h2 id="repositories">Repositories</h2>
+        <label for="repoSlug">Enter or search a GitHub repository:</label>
         <form method="POST" action="/add-repo" class="addrepo">
-          <label for="repoSlug">Enter or search a GitHub repository:</label>
           <input
             id="repoSlug"
             name="repoSlug"
@@ -122,6 +122,7 @@
             placeholder="github.com/... OR user/repo"
             required
           />
+          <input type="reset" class="resetRepoInput" value="✖"/>
         </form>
         <a id="repoSearchStatus" class="repoSearchStatus" aria-live="polite"></a>
         <ul id="repoSearchResults" class="repoSearchResults" aria-label="GitHub repository results"></ul>
