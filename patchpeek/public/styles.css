@@ -16,7 +16,7 @@ body {
   margin: 0;
   background: #222222;
   color: #ffffff;
-  min-width: 320px;
+  min-width: 300px;
 }
 
 @media (max-width: 1800px) {
@@ -28,6 +28,11 @@ body {
 @media (max-width: 850px) {
   .layout {
     flex-direction: column;
+  }
+
+  .content,
+  .sidebar {
+    width: 100%;
   }
 }
 
@@ -54,6 +59,23 @@ body {
   .markdown-body pre {
     font-size: 60% !important;
   }
+  .project,
+  .releaseCount {
+    font-size: 14px !important;
+  }
+  .project {
+    margin-left: 10px !important;
+  }
+  summary {
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+  }
+  .releaseCount {
+    right: 0 !important;
+  }
+  .settingsContent {
+    width: auto !important;
+  }
 }
 
 h2 {
@@ -71,12 +93,13 @@ h2 {
 
 .content {
   flex: 3;
-  min-width: 320px;
+  min-width: 300px;
 }
 
 .sidebar {
   flex: 1;
-  min-width: 280px;
+  min-width: 260px;
+  box-sizing: border-box;
   padding: 20px;
   background: var(--cards-color);
   border-radius: 15px;
@@ -168,7 +191,7 @@ h2 {
   background: var(--cards-color);
   border-radius: 15px;
   margin-bottom: 20px;
-  min-width: 290px;
+  min-width: 270px;
   align-items: center;
 }
 
@@ -356,6 +379,9 @@ summary::-webkit-details-marker {
   line-height: 1;
   font-size: 20px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .releaseCount {
@@ -502,6 +528,7 @@ input[type="number"] {
   align-items: center;
   gap: 10px;
   width: 100%;
+  box-sizing: border-box;
   padding: 8px;
   margin: 5px 0;
   border: 0;
@@ -525,6 +552,7 @@ input[type="number"] {
 }
 
 .repoSearchResult span {
+  flex: 1;
   min-width: 0;
 }
 
@@ -571,7 +599,7 @@ input::-webkit-inner-spin-button {
 }
 
 .repotext {
-  width: 300px;
+  width: 270px;
   margin: 0;
   padding-left: 5px;
   overflow: hidden;
