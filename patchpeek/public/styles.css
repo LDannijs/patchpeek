@@ -37,20 +37,15 @@ body {
 }
 
 @media (max-width: 750px) {
-  .lastUpdated {
-    margin-left: unset !important;
-  }
   .settings {
     margin-left: auto !important;
-  }
-  .refreshForm {
-    flex-basis: 50%;
   }
 }
 
 @media (max-width: 560px) {
   .lastUpdated {
     width: 100%;
+    margin-left: unset !important;
   }
   .releaseCount {
     justify-content: end !important;
@@ -163,7 +158,6 @@ h2 {
 }
 
 .dismiss-button {
-  margin-left: 5px;
   margin-left: auto;
   right: 5px;
   font-weight: 900;
@@ -277,7 +271,6 @@ h2 {
 }
 
 .settingsContent {
-  margin-top: 10px;
   position: absolute;
   z-index: 1;
   width: max-content;
@@ -434,11 +427,6 @@ a.releaseName:hover {
   border-radius: 15px;
   display: inline-block;
   overflow-wrap: anywhere !important;
-}
-
-.markdown-body h1,
-.markdown-body h2 {
-  border-bottom-color: #5d5d5db3 !important;
 }
 
 .markdown-body h1,
