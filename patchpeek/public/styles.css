@@ -46,6 +46,7 @@ body {
   .lastUpdated {
     width: 100%;
     margin-left: unset !important;
+    padding-left: unset !important;
   }
   .releaseCount {
     justify-content: end !important;
@@ -332,7 +333,7 @@ summary {
   border-radius: 15px;
   list-style: none;
   box-sizing: border-box;
-  padding: 10px 15px;
+  padding: 8px 10px;
   color: #ffffff;
   user-select: none;
   -moz-user-select: none;
@@ -381,7 +382,7 @@ summary::-webkit-details-marker {
   width: 7em;
   display: flex;
   color: #bdd9fd;
-  right: 20px;
+  right: 15px;
   margin-left: auto;
   margin-top: 0;
   margin-bottom: 0;
@@ -580,7 +581,6 @@ input::-webkit-inner-spin-button {
 }
 
 .repotext {
-  width: 270px;
   margin: 0;
   padding-left: 5px;
   overflow: hidden;
