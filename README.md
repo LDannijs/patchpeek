@@ -74,4 +74,4 @@ npm run dev
 
 This project came to fruition from me wanting to quickly know if any updates I were to do to my docker containers would break anything. I have used RSS feeds, discord notifications, etc. but they all felt too cumbersome to quickly give me the information i need at a glance.
 
-Besides that I wanted to push myself to make a project like this and see how far i could get, alongside learn some stuff from it. Besides that, this is a small side hobby, so I don't have a ton of time to work on it and fix stuff. I hope you can understand! :)
+Besides that I wanted to push myself to make a project like this and see how far i could get, alongside learn some stuff from it. This is a small side hobby, and I don't have a ton of time to work on it and fix stuff, so I hope you can understand! :)
