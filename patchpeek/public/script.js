@@ -5,23 +5,40 @@ document.querySelectorAll("form").forEach((form) =>
 );
 
 const timeEl = document.getElementById("lastUpdatedTime");
+const dateFormatToggle = document.getElementById("dateFormatToggle");
 
 function renderLastUpdated() {
-  const use12h = localStorage.getItem("timeFormat") !== "24";
+  const use12h = localStorage.getItem("timeFormat") === "12";
+  const useDayFirst = localStorage.getItem("dateFormat") !== "MDY";
+  const locale = useDayFirst ? "en-GB" : "en-US";
   timeEl.textContent = timeEl.dataset.timestamp
-    ? new Date(timeEl.dataset.timestamp).toLocaleString(undefined, {
+    ? new Date(timeEl.dataset.timestamp).toLocaleString(locale, {
         hour12: use12h,
       })
     : "never";
   document.getElementById("timeFormatToggle").textContent = use12h
     ? "12h"
     : "24h";
+  dateFormatToggle.textContent = useDayFirst ? "D/M/YYYY" : "M/D/YYYY";
+
+  document.querySelectorAll(".releaseDate").forEach((date) => {
+    date.textContent = new Date(date.dateTime).toLocaleDateString(locale);
+  });
 }
 
 document.getElementById("timeFormatToggle").addEventListener("click", () => {
+  const use12h = localStorage.getItem("timeFormat") === "12";
   localStorage.setItem(
     "timeFormat",
-    localStorage.getItem("timeFormat") !== "24" ? "24" : "12",
+    use12h ? "24" : "12",
+  );
+  renderLastUpdated();
+});
+
+dateFormatToggle.addEventListener("click", () => {
+  localStorage.setItem(
+    "dateFormat",
+    localStorage.getItem("dateFormat") !== "MDY" ? "MDY" : "DMY",
   );
   renderLastUpdated();
 });

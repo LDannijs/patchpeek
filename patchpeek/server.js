@@ -324,7 +324,7 @@ app.post("/add-repo", async (req, res) => {
 
   if (!repo) return renderIndex(res, ["Invalid repository slug"]);
   if (config.repos.includes(repo)) {
-    return renderIndex(res, ["Repository already added"]);
+    return renderIndex(res, ["Repository was already added"]);
   }
 
   try {

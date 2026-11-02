@@ -159,20 +159,22 @@ h2 {
 }
 
 .dismiss-button {
+  padding: 0;
   margin-left: auto;
-  right: 5px;
-  font-weight: 900;
-  font-size: 30px;
-  line-height: 25px;
   cursor: pointer;
   background: none;
   border: none;
   color: inherit;
-  text-decoration: none;
-  transition: 0.3s;
+}
+.dismiss-button svg {
+  display: block;
+  width: 35px;
+  height: 35px;
+  stroke: currentColor;
+  stroke-width: 3;
 }
 .dismiss-button:hover {
-  color: white;
+  color: #555555;
 }
 
 /* === HEADER SECTION === */
@@ -202,7 +204,7 @@ h2 {
   margin-bottom: auto;
 }
 
-.timeFormatToggle {
+.formatToggle {
   cursor: pointer;
   font-size: 16px;
   border-radius: 8px;
@@ -213,7 +215,7 @@ h2 {
   user-select: none;
 }
 
-.timeFormatToggle:hover {
+.formatToggle:hover {
   background: #505050;
 }
 
@@ -299,7 +301,7 @@ h2 {
 
 .dayswindow {
   width: 28px;
-  padding: 0.2rem;
+  padding: 0.3rem !important;
   margin: 0 0.3rem;
 }
 
@@ -401,7 +403,7 @@ summary::-webkit-details-marker {
 }
 
 details.release {
-  background: #0a0a0a;
+  background: #222222;
   margin-bottom: 10px;
 }
 

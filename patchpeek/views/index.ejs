@@ -25,8 +25,9 @@
         </summary>
         <div class="settingsContent">
           <form method="POST" action="/update-days">
-            <label for="timeFormatToggle">Time format:</label>
-            <button type="button" id="timeFormatToggle" class="timeFormatToggle" title="Toggle 12h/24h time format"></button>
+            <label for="timeFormatToggle">Time/day format:</label>
+            <button type="button" id="timeFormatToggle" class="formatToggle" title="Toggle 12h/24h time format"></button>
+            <button type="button" id="dateFormatToggle" class="formatToggle" title="Toggle day/month/year or month/day/year format"></button>
           </form>
           <hr>
           <form method="POST" action="/update-days">
@@ -44,7 +45,7 @@
             days
           </form>
           <hr>
-          <form action="/update-token" method="POST" class="updatetoken">
+          <form action="/update-token" method="POST" class="updatetoken" autocomplete="off">
             <label for="githubToken">GitHub Token:</label>
             <input id="githubToken" type="text" name="githubToken" placeholder="github_pat_... / ghp_..." />
           </form>
@@ -64,7 +65,11 @@
               class="dismiss-button"
               href="/"
               aria-label="Dismiss error message"
-            >&times;</a>
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </a>
           </div>
         <% } %>
         <% if (rateLimited) { %>
@@ -88,7 +93,7 @@
                   <summary class="<%= release.flagged ? 'flagged' : '' %>">
                     <a class="releaseName <%= release.flagged ? 'flagged' : '' %>" href="<%= release.html_url %>" target="_blank">
                       <%= release.name || release.tag_name %> 
-                      (<%= new Date(release.published_at).toLocaleDateString() %>)
+                      (<time class="releaseDate" datetime="<%= release.published_at %>"></time>)
                     </a>
                   </summary>
                   <div class="markdown-body">
@@ -114,7 +119,7 @@
       <div class="sidebar">
         <h2 id="repositories">Repositories</h2>
         <label for="repoSlug">Enter or search a GitHub repository:</label>
-        <form method="POST" action="/add-repo" class="addrepo">
+        <form method="POST" action="/add-repo" class="addrepo" autocomplete="off">
           <input
             id="repoSlug"
             name="repoSlug"
